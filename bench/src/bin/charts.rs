@@ -336,7 +336,7 @@ fn main() {
         r#"<text x="0" y="{foot}" class="note">Each panel has its own scale; the number beside a bar is the measurement. Every figure comes from bench/results/.</text>"#
     ));
     parts.push(format!(
-        r#"<text x="0" y="{}" class="note">Both built as a CLI ships them (opt-level z, fat LTO), jsonschema 0.60 with formats asserted as flowschema asserts them.</text>"#,
+        r#"<text x="0" y="{}" class="note">Times built for speed (opt-level 3, fat LTO), weight built for size; jsonschema 0.60 with formats asserted as flowschema asserts them.</text>"#,
         foot + 18.0
     ));
     let (w, h) = (width + PAD * 2.0, foot + 26.0 + PAD * 2.0);

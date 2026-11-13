@@ -13,4 +13,5 @@ step cargo clippy --locked --all-targets -- -D warnings
 step cargo test --locked
 step cargo build --locked --release --target wasm32-unknown-unknown
 step cargo fmt --check --manifest-path bench/Cargo.toml
+step cargo fmt --check --manifest-path bench/quick/Cargo.toml
 printf '\nall checks passed\n'

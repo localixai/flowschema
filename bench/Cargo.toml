@@ -13,10 +13,11 @@ flowschema = { path = ".." }
 serde_json = "1.0.154"
 jsonschema = { version = "0.60", default-features = false }
 
-# Built for size, as a CLI ships it: a panic unwinding.
+# Built for speed, as a release is built where speed matters: one codegen unit, fat LTO, a panic
+# unwinding. The size is measured apart, built for size (size/).
 [profile.release]
 codegen-units = 1
 lto = "fat"
-opt-level = "z"
+opt-level = 3
 panic = "unwind"
 debug = 1

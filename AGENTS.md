@@ -18,7 +18,9 @@ and it binds an agent as it binds a person. This file says where things are and 
 - `bench/`: the benchmarks against the `jsonschema` crate, their budgets (`budgets.json`), and
   the results every published figure comes from (`results/`), the README's chart among them
   (`results/charts/compare.png`, drawn by `charts.sh`). A crate of its own: `jsonschema`
-  and the corpora never reach the library's build. Its method: [bench/README.md](bench/README.md).
+  and the corpora never reach the library's build. `bench/quick/` is the loop a change is
+  measured in first: instructions, cycles and allocations, the same on every run, and a
+  fingerprint of every verdict. Its method: [bench/README.md](bench/README.md).
 - `docs/`: the documentation, one page per file.
 
 ## Commands
@@ -27,6 +29,7 @@ and it binds an agent as it binds a person. This file says where things are and 
 scripts/check                    # every check CI runs: fmt, clippy, tests, the wasm build
 cargo test --locked              # the tests; one: cargo test --locked <name>
 bench/run.sh                     # every benchmark, results/ written, then held to budgets.json
+(cd bench/quick && cargo run --release)   # a change measured in seconds, in instructions
 cargo run --release --bin check --manifest-path bench/Cargo.toml   # the last run, held again
 ```
 
