@@ -1,0 +1,46 @@
+{
+  "drafts": [
+    {
+      "draft": "draft4",
+      "jsonschema": 928,
+      "leftOut": 20,
+      "ours": 928,
+      "total": 928
+    },
+    {
+      "draft": "draft6",
+      "jsonschema": 1256,
+      "leftOut": 20,
+      "ours": 1256,
+      "total": 1256
+    },
+    {
+      "draft": "draft7",
+      "jsonschema": 1584,
+      "leftOut": 145,
+      "ours": 1584,
+      "total": 1584
+    },
+    {
+      "draft": "draft2019-09",
+      "jsonschema": 1944,
+      "leftOut": 185,
+      "ours": 1944,
+      "total": 1944
+    },
+    {
+      "draft": "draft2020-12",
+      "jsonschema": 1963,
+      "leftOut": 188,
+      "ours": 1963,
+      "total": 1963
+    }
+  ],
+  "failures": [],
+  "leftOutBy": {
+    "$dynamicRef across resources": 73,
+    "$ref outside the schema": 34,
+    "format": 375,
+    "pattern": 76
+  }
+}

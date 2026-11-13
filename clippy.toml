@@ -1,0 +1,27 @@
+# The lints are in Cargo.toml; this is their configuration (AGENTS.md, F5).
+
+# Tests may unwrap, panic and print: a failed test is the panic's job (F1).
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
+allow-print-in-tests = true
+allow-dbg-in-tests = true
+
+too-many-lines-threshold = 100
+cognitive-complexity-threshold = 25
+max-fn-params-bools = 2
+max-struct-bools = 3
+
+# A library does no I/O and keeps no state between calls (F10, F12).
+disallowed-methods = [
+    { path = "std::process::exit", reason = "a library never ends the process: return what was found" },
+    { path = "std::env::var", reason = "a library reads nothing from the environment: take it as an argument" },
+    { path = "std::env::set_var", reason = "a library never changes the environment" },
+    { path = "std::thread::spawn", reason = "a check runs on its caller's thread" },
+    { path = "std::thread::sleep", reason = "a check never waits" },
+]
+disallowed-types = [
+    { path = "std::cell::RefCell", reason = "a Schema is Send + Sync (F12)" },
+    { path = "std::cell::Cell", reason = "a Schema is Send + Sync (F12)" },
+    { path = "std::rc::Rc", reason = "a Schema is Send + Sync (F12): Arc" },
+]

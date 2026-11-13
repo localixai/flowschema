@@ -1,0 +1,16 @@
+#!/bin/sh
+# The repository's checks from one entry point, the same locally and in CI
+# (.github/workflows/ci.yml): formatting, the lints, the tests (the README's example and the
+# repository's own rules among them), and a build for the browser's WebAssembly, which holds no
+# I/O. The benchmarks are not among them: bench/run.sh, then its check (bench/README.md).
+#
+#   scripts/check          every check, in order; stops at the first failure
+set -eu
+cd "$(dirname "$0")/.."
+step() { printf '\n== %s\n' "$*"; "$@"; }
+step cargo fmt --check
+step cargo clippy --locked --all-targets -- -D warnings
+step cargo test --locked
+step cargo build --locked --release --target wasm32-unknown-unknown
+step cargo fmt --check --manifest-path bench/Cargo.toml
+printf '\nall checks passed\n'

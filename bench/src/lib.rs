@@ -1,5 +1,7 @@
 //! What the benchmarks share: a counting allocator, a timer that takes the median of many rounds,
-//! the reference validator built as ours is (formats asserted), and the corpora's places.
+//! the reference validator built as ours is (formats asserted), the corpora's places, and where a
+//! run's results are written (`results/`, committed: every figure the README gives comes from
+//! there).
 
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::hint::black_box;
@@ -106,6 +108,71 @@ pub fn data(path: &str) -> std::path::PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("data")
         .join(path)
+}
+
+/// The file `name` under `results/`.
+pub fn results(name: &str) -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("results")
+        .join(name)
+}
+
+/// One benchmark's results: `results/<name>.json`, which `check` holds to `budgets.json`, and
+/// `results/<name>.md`, the tables the documentation copies; the Markdown is printed too.
+pub fn publish(name: &str, json: &Value, markdown: &str) {
+    let written = std::fs::create_dir_all(results(""))
+        .and_then(|()| {
+            let text = serde_json::to_string_pretty(json).unwrap_or_default();
+            std::fs::write(results(&format!("{name}.json")), text + "\n")
+        })
+        .and_then(|()| std::fs::write(results(&format!("{name}.md")), markdown));
+    if let Err(why) = written {
+        eprintln!("results/{name}: not written ({why})");
+    }
+    print!("{markdown}");
+}
+
+/// Counts by what they count, as a sentence lists them: `format (375), pattern (76)`, largest first.
+pub fn counted(counts: &std::collections::BTreeMap<&str, usize>) -> String {
+    let mut counts: Vec<(&&str, &usize)> = counts.iter().collect();
+    counts.sort_by(|a, b| b.1.cmp(a.1).then(a.0.cmp(b.0)));
+    let parts: Vec<String> = counts
+        .iter()
+        .map(|(what, n)| format!("`{what}` ({n})"))
+        .collect();
+    match parts.is_empty() {
+        true => "nothing".into(),
+        false => parts.join(", "),
+    }
+}
+
+/// A count as prose writes it: `11,306`.
+pub fn thousands(n: usize) -> String {
+    let digits = n.to_string();
+    let mut out = String::new();
+    for (i, c) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i) % 3 == 0 {
+            out.push(',');
+        }
+        out.push(c);
+    }
+    out
+}
+
+/// The machine settled before anything is timed: a second of work, so the scheduler has moved the
+/// process to a fast core and its clock is up when the first measurement starts.
+pub fn settle() {
+    let started = Instant::now();
+    let mut x = 0u64;
+    while started.elapsed().as_millis() < 1_000 {
+        x = black_box(x.wrapping_mul(6364136223846793005).wrapping_add(1));
+    }
+    black_box(x);
+}
+
+/// `text` as a cell of a Markdown table: a `|` in it would end the cell.
+pub fn cell(text: &str) -> String {
+    text.replace('|', "\\|")
 }
 
 /// A time as a table says it.

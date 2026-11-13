@@ -1,11 +1,11 @@
 //! Typical checks of an LLM's structured answer, each against `jsonschema`: fixed schemas and
-//! data, the median of 31 rounds, exact allocation counts. Prints a Markdown table.
+//! data, the median of 31 rounds, exact allocation counts. Writes `results/micro.{json,md}`.
 
-use schema::Schema;
-use schema_bench::{measure, reference, shown};
+use flowschema::Schema;
+use flowschema_bench::{cell, measure, publish, reference, settle, shown};
 use serde_json::{Map, Value, json};
 
-/// A code review's verdict, as `llx exec --schema` asks for one.
+/// A code review's verdict, as an agent's structured output asks for one.
 fn verdict() -> Value {
     json!({"type": "object", "required": ["verdict", "summary", "issues"],
         "additionalProperties": false,
@@ -123,52 +123,68 @@ fn strings(prefix: &str, count: usize) -> Vec<Value> {
     (0..count).map(|i| json!(format!("{prefix}-{i}"))).collect()
 }
 
-/// One row: what the check is, ours and the reference timed, and how far apart they are.
-fn row(name: &str, schema: &Value, data: &Value) {
-    let ours = Schema::new(schema.clone());
-    let Some(theirs) = reference(schema) else {
-        println!("| {name} | – | – | jsonschema refused the schema |");
-        return;
-    };
-    assert_eq!(
-        ours.matches(data),
-        theirs.is_valid(data),
-        "{name}: the verdicts differ"
-    );
-    let a = measure(|| ours.matches(data));
-    let b = measure(|| theirs.is_valid(data));
-    println!(
-        "| {name} | {} ({} alloc) | {} ({} alloc) | {:.2}x |",
-        shown(a.ns),
-        a.allocations,
-        shown(b.ns),
-        b.allocations,
-        b.ns / a.ns,
-    );
+/// The run's rows, as the table and the JSON both say them.
+#[derive(Default)]
+struct Run {
+    markdown: String,
+    checks: Vec<Value>,
+}
+
+impl Run {
+    /// One row: what the check is, ours and the reference timed, and how far apart they are.
+    fn row(&mut self, name: &str, schema: &Value, data: &Value) {
+        let ours = Schema::new(schema.clone());
+        let Some(theirs) = reference(schema) else {
+            self.markdown += &format!(
+                "| {} | – | – | jsonschema refused the schema |\n",
+                cell(name)
+            );
+            return;
+        };
+        let valid = ours.matches(data);
+        assert_eq!(valid, theirs.is_valid(data), "{name}: the verdicts differ");
+        let a = measure(|| ours.matches(data));
+        let b = measure(|| theirs.is_valid(data));
+        self.markdown += &format!(
+            "| {} | {} ({} alloc) | {} ({} alloc) | {:.2}x |\n",
+            cell(name),
+            shown(a.ns),
+            a.allocations,
+            shown(b.ns),
+            b.allocations,
+            b.ns / a.ns,
+        );
+        self.checks.push(json!({"name": name, "valid": valid,
+            "ours": {"ns": a.ns, "allocations": a.allocations},
+            "jsonschema": {"ns": b.ns, "allocations": b.allocations},
+            "ratio": b.ns / a.ns}));
+    }
 }
 
 fn main() {
-    println!("| check | schema | jsonschema 0.60 | ours faster by |");
-    println!("|---|---|---|---|");
+    settle();
+    let mut run = Run::default();
+    run.markdown += "| check | flowschema | jsonschema 0.60 | flowschema faster by |\n";
+    run.markdown += "|---|---|---|---|\n";
     let review = verdict();
-    row("review verdict, valid", &review, &issues(5, false));
-    row("review verdict, invalid", &review, &issues(5, true));
+    run.row("review verdict, valid", &review, &issues(5, false));
+    run.row("review verdict, invalid", &review, &issues(5, true));
     let (schema, data) = rows();
-    row("1,000 rows", &schema, &data);
+    run.row("1,000 rows", &schema, &data);
     let (schema, data) = wide();
-    row("500 objects × 20 fields", &schema, &data);
+    run.row("500 objects × 20 fields", &schema, &data);
     let (schema, data) = tree();
-    row("tree of 511 nodes by `$ref`", &schema, &data);
+    run.row("tree of 511 nodes by `$ref`", &schema, &data);
     let (schema, data) = calls();
-    row("64 tool calls, `oneOf` of 8", &schema, &data);
+    run.row("64 tool calls, `oneOf` of 8", &schema, &data);
     let unique = json!({"type": "array", "uniqueItems": true});
-    row(
+    run.row(
         "`uniqueItems`, 1,000 strings",
         &unique,
         &Value::Array(strings("item", 1000)),
     );
     let options = json!({"enum": strings("option", 1000)});
-    row("`enum` of 1,000, the last", &options, &json!("option-999"));
+    run.row("`enum` of 1,000, the last", &options, &json!("option-999"));
     for (format, value) in [
         ("date-time", "2026-11-07T18:39:00Z"),
         ("email", "a.b@example.com"),
@@ -176,7 +192,7 @@ fn main() {
         ("ipv4", "192.168.0.1"),
         ("uri", "https://example.com/a?b=c#d"),
     ] {
-        row(
+        run.row(
             &format!("`format: {format}`"),
             &json!({"format": format}),
             &json!(value),
@@ -193,7 +209,7 @@ fn main() {
         "(a)\\1",
         "(?<n>a)\\k<n>",
     ] {
-        row(
+        run.row(
             &format!("`format: regex`, `{value}`"),
             &json!({"format": "regex"}),
             &json!(value),
@@ -208,15 +224,15 @@ fn main() {
         ),
         ("^(small|medium|large)$", "medium"),
     ] {
-        row(
+        run.row(
             &format!("`pattern: {pattern}`"),
             &json!({"pattern": pattern}),
             &json!(value),
         );
     }
-    println!();
-    println!("| compiled once | ours | jsonschema 0.60 | ours faster by |");
-    println!("|---|---|---|---|");
+    run.markdown += "\n| compiled once | flowschema | jsonschema 0.60 | flowschema faster by |\n";
+    run.markdown += "|---|---|---|---|\n";
+    let mut compiled = vec![];
     for (name, schema) in [
         ("review verdict", review.clone()),
         ("tool calls", calls().0),
@@ -225,25 +241,32 @@ fn main() {
         let b = measure(|| reference(&schema).is_some());
         let copy = measure(|| schema.clone());
         let ours = a.ns - copy.ns;
-        println!(
-            "| {name} | {} | {} | {:.2}x |",
+        run.markdown += &format!(
+            "| {name} | {} | {} | {:.2}x |\n",
             shown(ours),
             shown(b.ns),
             b.ns / ours
         );
+        compiled.push(
+            json!({"name": name, "ours": {"ns": ours}, "jsonschema": {"ns": b.ns},
+            "ratio": b.ns / ours}),
+        );
     }
     let broken = issues(5, true);
     let ours = Schema::new(review.clone());
+    let mut messages = Value::Null;
     if let Some(theirs) = reference(&review) {
         let a = measure(|| ours.mismatches(&broken).len());
         // Both write every message out as text, as the model reads them.
         let b = measure(|| theirs.iter_errors(&broken).map(|e| e.to_string()).count());
-        println!();
-        println!(
-            "Every message of an invalid verdict: ours {}, jsonschema {} ({:.2}x).",
+        run.markdown += &format!(
+            "\nEvery message of an invalid verdict: flowschema {}, jsonschema {} ({:.2}x).\n",
             shown(a.ns),
             shown(b.ns),
             b.ns / a.ns
         );
+        messages = json!({"ours": {"ns": a.ns}, "jsonschema": {"ns": b.ns}, "ratio": b.ns / a.ns});
     }
+    let json = json!({"checks": run.checks, "compiled": compiled, "messages": messages});
+    publish("micro", &json, &run.markdown);
 }

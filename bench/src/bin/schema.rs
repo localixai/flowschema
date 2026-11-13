@@ -1,8 +1,8 @@
 //! One corpus file, answer by answer: ours against `jsonschema`, the median of 31 rounds each.
 //! For a schema `corpus` lists as slower: `cargo run --release --bin schema -- <file>`.
 
-use schema::Schema;
-use schema_bench::{measure, reference, shown};
+use flowschema::Schema;
+use flowschema_bench::{measure, reference, shown};
 use serde_json::Value;
 
 fn main() {

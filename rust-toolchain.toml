@@ -1,0 +1,6 @@
+# The latest stable Rust: the crate builds on any stable from its rust-version (Cargo.toml) on.
+[toolchain]
+channel = "stable"
+components = ["rustfmt", "clippy"]
+targets = ["wasm32-unknown-unknown"]
+profile = "minimal"

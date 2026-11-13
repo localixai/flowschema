@@ -1,0 +1,26 @@
+Github_easy---o73983.json	ours=false	jsonschema=true	label=false	data.guid must be a valid uuid (is "not-a-uuid")
+Github_easy---o73983.json	ours=false	jsonschema=true	label=false	data.guid must be a valid uuid (is "123e4567-e89b-12d3-a456-42665544000")
+Github_easy---o73993.json	ours=false	jsonschema=true	label=false	data.refId must be a valid uuid (is "Invalid UUID")
+Github_easy---o73993.json	ours=false	jsonschema=true	label=false	data.refId must be a valid uuid (is "not-a-uuid")
+Github_easy---o73993.json	ours=false	jsonschema=true	label=false	data.refId must be a valid uuid (is "123e4567-e89b-12d3-a456-42665544000")
+Github_easy---o76630.json	ours=false	jsonschema=true	label=false	data.account.homePage must be a valid iri (is "not-an-iri")
+Github_hard---o71304.json	ours=false	jsonschema=true	label=false	data.fabric_uuid must be a valid uuid (is "not-a-uuid")
+Github_hard---o71307.json	ours=false	jsonschema=true	label=false	data.image_devices[0].device_list[0] must be a valid uuid (is "not-a-uuid")
+Github_hard---o8458.json	ours=false	jsonschema=true	label=false	data.fabric_uuid must be a valid uuid (is "not a uuid")
+Github_hard---o8463.json	ours=false	jsonschema=true	label=false	data.image_devices[0].device_list[2] must be a valid uuid (is "INVALID-UUID")
+Github_hard---o8463.json	ours=false	jsonschema=true	label=false	data.device_list[1] must be a valid uuid (is "not-a-uuid")
+Github_hard---o8470.json	ours=false	jsonschema=true	label=false	data.fabric_uuid must be a valid uuid (is "123e4567-e89b-12d3-a456-42665544000")
+Github_hard---o8470.json	ours=false	jsonschema=true	label=false	data.fabric_uuid must be a valid uuid (is "invalid-uuid")
+Github_hard---o8471.json	ours=false	jsonschema=true	label=false	data.fabric_uuid must be a valid uuid (is "not-a-uuid")
+Github_medium---o71320.json	ours=false	jsonschema=true	label=false	data.fabric_uuid must be a valid uuid (is "123e4567-e89b-12d3-a456-42665544000")
+Github_medium---o71320.json	ours=false	jsonschema=true	label=false	data.fabric_uuid must be a valid uuid (is "123456789")
+Github_medium---o8473.json	ours=false	jsonschema=true	label=false	data.rma_devices[1].device_uuid must be a valid uuid (is "NOT_A_UUID")
+Github_medium---o8473.json	ours=false	jsonschema=true	label=false	data.rma_devices[1].device_uuid must be a valid uuid (is "123e4567-e89b-12d3")
+JsonSchemaStore---artifacthub-repo.json	ours=false	jsonschema=true	label=false	data.repositoryID must be a valid uuid (is "abcdef")
+JsonSchemaStore---browser.i18n.json	ours=true	jsonschema=false	label=false	
+JsonSchemaStore---component_spec.json_schema.json	ours=false	jsonschema=true	label=false	data.implementation must match exactly one schema of oneOf (matches none)
+JsonSchemaStore---mongodb-atlas-search-index-definition.json	ours=true	jsonschema=false	label=false	
+JsonSchemaStore---vars.json	ours=true	jsonschema=false	label=false	
+JsonSchemaStore---vars.json	ours=true	jsonschema=false	label=false	
+JsonSchemaStore---vars.json	ours=true	jsonschema=false	label=false	
+JsonSchemaStore---vars.json	ours=true	jsonschema=false	label=false	

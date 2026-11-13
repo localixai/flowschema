@@ -115,6 +115,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "flowschema"
+version = "0.1.0"
+dependencies = [
+ "regex-lite",
+ "serde_json",
+]
+
+[[package]]
+name = "flowschema-bench"
+version = "0.0.0"
+dependencies = [
+ "flowschema",
+ "jsonschema",
+ "serde_json",
+]
+
+[[package]]
 name = "fluent-uri"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -498,23 +515,6 @@ name = "rustversion"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
-
-[[package]]
-name = "schema"
-version = "0.4.0"
-dependencies = [
- "regex-lite",
- "serde_json",
-]
-
-[[package]]
-name = "schema-bench"
-version = "0.0.0"
-dependencies = [
- "jsonschema",
- "schema",
- "serde_json",
-]
 
 [[package]]
 name = "scopeguard"

@@ -1,11 +1,11 @@
 //! Types alone, settled once the nodes are built: a `$ref` and nothing else asks the types of
-//! what it lands on. Unions of types: an `anyOf` whose branches each ask only for types (`{"type": "string"}`, a
-//! `$ref` to one, `true`) asks only for the union of them, and a `oneOf` of such branches too,
-//! where no two share a type (a value then matches one of them at most: a set that holds
-//! `number` holds `integer`, so an integer can match two only where two share a bit). Such a
-//! union is given those types as its own (`Rules::only_types`), and the walk settles it with
-//! one test of the value's kind; where the value fails, the walk reads the union whole, so what
-//! it says is unchanged.
+//! what it lands on. Unions of types: an `anyOf` whose branches each ask only for types
+//! (`{"type": "string"}`, a `$ref` to one, `true`) asks only for the union of them, and a `oneOf`
+//! of such branches too, where no two share a type (a value then matches one of them at most: a
+//! set that holds `number` holds `integer`, so an integer can match two only where two share a
+//! bit). Such a union is given those types as its own (`Rules::only_types`), and the walk settles
+//! it with one test of the value's kind; where the value fails, the walk reads the union whole,
+//! so what it says is unchanged.
 
 use super::each;
 use crate::node::{ALL, HAS_ARRAY, HAS_COMBINED, HAS_KIND, Id, Items, Node, PlainArray, Rules};

@@ -1,0 +1,28 @@
+# What a validator adds to a release binary: one small program, built by size.sh with no validator,
+# with flowschema, with jsonschema, and with regex-lite alone (flowschema's share of it). A crate of its own, outside the bench.
+[package]
+name = "flowschema-size"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[features]
+flowschema = ["dep:flowschema"]
+jsonschema = ["dep:jsonschema"]
+regex-lite = ["dep:regex-lite"]
+
+[dependencies]
+serde_json = "1.0.154"
+flowschema = { path = "../..", optional = true }
+jsonschema = { version = "0.60", default-features = false, optional = true }
+# flowschema's one dependency besides serde_json, built alone to say its share.
+regex-lite = { version = "0.1.9", optional = true }
+
+# Built as a CLI ships: for size, symbols stripped, a panic unwinding.
+[profile.release]
+codegen-units = 1
+lto = "fat"
+opt-level = "z"
+strip = true

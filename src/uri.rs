@@ -1,7 +1,7 @@
 //! A reference resolved against a base URI as RFC 3986 section 5.2 says, for `$id` and `$ref`:
 //! no network, only the text. A document with no `$id` of its own has `BASE`.
 
-/// The base of a document that names none, as jsonschema-rs gives one.
+/// The base of a document that names none: a URI no `$ref` written by hand can reach.
 pub(crate) const BASE: &str = "json-schema:///";
 
 /// A URI's parts, borrowed from its text.

@@ -1,0 +1,47 @@
+name: Release
+
+# Push a tag `v<version>`, the version in Cargo.toml, to release it: the checks run on the tag,
+# and a GitHub release is made with that version's part of CHANGELOG.md. Programs take flowschema
+# as a git dependency on the tag; nothing is published to crates.io yet.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: The tag names the crate's version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::tag $TAG, but Cargo.toml is $version"
+            exit 1
+          fi
+
+      - run: rustup toolchain install
+      - run: scripts/check
+
+      - name: The release, with its changelog
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          version=${TAG#v}
+          awk -v v="## $version" '$0 == v { on = 1; next } on && /^## / { exit } on' CHANGELOG.md > notes.md
+          gh release create "$TAG" --title "flowschema $version" --notes-file notes.md

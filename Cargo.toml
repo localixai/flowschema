@@ -1,18 +1,130 @@
 [package]
-name = "schema"
-description = "Data checked against a JSON Schema given at run time, as --schema gives it"
+name = "flowschema"
+version = "0.1.0"
+description = "JSON Schema for agents: tool calls and structured output, checked as models write them"
+edition = "2024"
+rust-version = "1.89"
+license = "MIT"
+repository = "https://github.com/localixai/flowschema"
+readme = "README.md"
+keywords = ["json-schema", "validation", "llm", "agents", "structured-output"]
+categories = ["encoding", "parser-implementations"]
+# Published from a git tag for now; crates.io comes later (AGENTS.md).
 publish = false
-version.workspace = true
-edition.workspace = true
-rust-version.workspace = true
-license.workspace = true
+# What a package carries: the library and its documents, never the bench and its corpora.
+include = ["/src/**", "/README.md", "/LICENSE", "/CHANGELOG.md"]
 
-# No workspace package: a primitive the app composes (rule L3).
 [dependencies]
 # A pattern our own automaton cannot take (`\b`, an anchor inside, a long count): 0.2% of a
 # corpus of real schemas, for some 50 KB where the full `regex` adds 800 KB.
-regex-lite.workspace = true
-serde_json.workspace = true
+regex-lite = "0.1.9"
+serde_json = "1.0.154"
 
-[lints]
-workspace = true
+# The bench is a crate of its own (bench/), outside this one: `jsonschema` and the corpora never
+# reach a build of flowschema.
+[workspace]
+exclude = ["bench"]
+
+# The lints are hard (AGENTS.md, rule F5): denied, never turned off here. An exception is an
+# `expect` with its `reason` on the smallest item. Their configuration is clippy.toml.
+[lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+# The tightest visibility that compiles (F12): `pub` only for what another crate uses.
+unreachable_pub = "deny"
+unused_qualifications = "deny"
+
+[lints.clippy]
+# A panic is a bug (F1): what a model wrote never crashes the program that checks it. No unwrap,
+# expect, panic or unreachable in working code; an error is handled or returned.
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+unreachable = "deny"
+todo = "deny"
+unimplemented = "deny"
+# A string sliced inside a character panics.
+string_slice = "deny"
+# A number cut short by `as` is a silent bug: `try_from`, or a reason.
+cast_possible_truncation = "deny"
+# A library prints nothing and never ends the process: it returns what it found.
+dbg_macro = "deny"
+print_stdout = "deny"
+print_stderr = "deny"
+exit = "deny"
+mem_forget = "deny"
+# A `Schema` is `Send + Sync`: no `Rc`, `Cell` or `RefCell` (F12); the rest is in clippy.toml.
+disallowed_methods = "deny"
+disallowed_types = "deny"
+# Small functions, as small files (F3): at most 100 lines, a bounded complexity.
+too_many_lines = "deny"
+cognitive_complexity = "deny"
+# Explicit where it matters.
+clone_on_ref_ptr = "deny"
+redundant_clone = "deny"
+match_wildcard_for_single_variants = "deny"
+# Our own enums are matched exhaustively (F11): a variant added is placed in every match, never
+# swallowed by a `_`. A foreign enum's `_` arm is an `expect` that names it.
+wildcard_enum_match_arm = "deny"
+wildcard_imports = "deny"
+unused_self = "deny"
+# Rust's anti-patterns: a lost error cause, a guard held
+# where it blocks, time that underflows, a cast that changes sign, flags instead of a state.
+map_err_ignore = "deny"
+unwrap_in_result = "deny"
+unused_result_ok = "deny"
+significant_drop_in_scrutinee = "deny"
+unchecked_time_subtraction = "deny"
+cast_sign_loss = "deny"
+cast_possible_wrap = "deny"
+fn_params_excessive_bools = "deny"
+struct_excessive_bools = "deny"
+option_option = "deny"
+unnecessary_wraps = "deny"
+needless_collect = "deny"
+format_collect = "deny"
+# `write!` into the String, not a `format!` allocated to be appended.
+format_push_string = "deny"
+# A default built only when it is needed: `unwrap_or_else`, `map_or_else`, `or_else`.
+or_fun_call = "deny"
+# A method that returns a changed copy is `#[must_use]`: dropping the copy loses the change.
+return_self_not_must_use = "deny"
+# A clone into a value already there reuses its allocation: `clone_from`.
+assigning_clones = "deny"
+# Primitives sort unstably: equal ones cannot be told apart, and it needs no buffer.
+stable_sort_primitive = "deny"
+# One module layout: `x.rs` beside its directory `x/`, never `x/mod.rs` (F4).
+mod_module_files = "deny"
+# What a function only reads it borrows; a value it takes it keeps, or moves on.
+needless_pass_by_value = "deny"
+# A struct is all public, or its fields say how far they reach (F12): another crate reads
+# a private field through a method.
+partial_pub_fields = "deny"
+iter_over_hash_type = "deny"
+fallible_impl_from = "deny"
+mutex_atomic = "deny"
+mutex_integer = "deny"
+rc_mutex = "deny"
+rc_buffer = "deny"
+try_err = "deny"
+get_unwrap = "deny"
+verbose_file_reads = "deny"
+lossy_float_literal = "deny"
+mixed_read_write_in_expression = "deny"
+infinite_loop = "deny"
+empty_drop = "deny"
+error_impl_error = "deny"
+panic_in_result_fn = "deny"
+rest_pat_in_fully_bound_structs = "deny"
+trivially_copy_pass_by_ref = "deny"
+large_types_passed_by_value = "deny"
+inefficient_to_string = "deny"
+implicit_clone = "deny"
+create_dir = "deny"
+filetype_is_file = "deny"
+# Every unsafe block says why it is sound, one operation each; there is none (F7).
+undocumented_unsafe_blocks = "deny"
+multiple_unsafe_ops_per_block = "deny"
+# A lint set aside says why, and is an `expect`: an exemption that no longer applies fails the
+# build, so none outlives its reason.
+allow_attributes_without_reason = "deny"
+allow_attributes = "deny"

@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Formatting, the lints, the tests (the README's and docs/' examples, the repository's own
+  # rules), and the build for the browser's WebAssembly: scripts/check, as it runs locally.
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      # rust-toolchain.toml names the toolchain, its components and the wasm target.
+      - run: rustup toolchain install
+      - run: scripts/check
+
+  # The oldest Rust the crate says it builds on (Cargo.toml's rust-version).
+  msrv:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: The tests on Cargo.toml's rust-version
+        run: |
+          version=$(sed -n 's/^rust-version = "\(.*\)"/\1/p' Cargo.toml)
+          rustup toolchain install "$version" --profile minimal
+          cargo +"$version" test --locked
+
+  # The benchmarks are not timed here (a shared runner's times say little); the results committed
+  # with the change are held to bench/budgets.json, and docs/ must show those results.
+  budgets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - run: rustup toolchain install
+      - name: The committed results hold to the budgets
+        run: cargo run --locked --quiet --bin check --manifest-path bench/Cargo.toml
+      - name: docs/ shows the committed results
+        run: |
+          bench/docs.sh
+          git diff --exit-code -- docs || {
+            echo "::error::docs/ differs from bench/results: run bench/docs.sh and commit"
+            exit 1
+          }

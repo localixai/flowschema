@@ -1,15 +1,15 @@
 //! The official JSON-Schema-Test-Suite: every required test of each draft, the format tests (this
 //! package asserts `format`) and the ECMA-262 regular expressions, through ours and `jsonschema`;
 //! the suite's remote documents given to both. A group whose schema uses a keyword not checked
-//! here is counted apart.
+//! here is counted apart. Writes `results/suite.{json,md}`.
 
 use std::collections::HashMap;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::{Path, PathBuf};
 
-use schema::Schema;
-use schema_bench::data;
-use serde_json::Value;
+use flowschema::Schema;
+use flowschema_bench::{counted, data, publish};
+use serde_json::{Value, json};
 
 const DRAFTS: [(&str, &str); 5] = [
     ("draft4", "http://json-schema.org/draft-04/schema#"),
@@ -69,8 +69,11 @@ fn main() {
     );
     let mut failures = vec![];
     let mut why: std::collections::BTreeMap<&'static str, usize> = Default::default();
-    println!("| draft | ours | jsonschema 0.60 | groups left out (a keyword not checked here) |");
-    println!("|---|---|---|---|");
+    let mut markdown = String::from(
+        "| draft | flowschema | jsonschema 0.60 | tests left out (a keyword not checked here) |\n\
+         |---|---|---|---|\n",
+    );
+    let mut drafts = vec![];
     for (draft, meta) in DRAFTS {
         let mut files: Vec<_> = (listed(root.join(draft)).into_iter())
             .filter(|path| !path.ends_with("format.json"))
@@ -145,14 +148,20 @@ fn main() {
                 }
             }
         }
-        println!(
-            "| {draft} | {ours_passed}/{total} | {theirs_passed}/{total} | {left_out} tests |"
+        markdown += &format!(
+            "| {draft} | {ours_passed}/{total} | {theirs_passed}/{total} | {left_out} tests |\n"
         );
+        drafts.push(json!({"draft": draft, "total": total, "ours": ours_passed,
+            "jsonschema": theirs_passed, "leftOut": left_out}));
     }
-    println!();
-    println!("left out, by what is not checked: {why:?}");
-    println!("failures: {}", failures.len());
+    markdown += &format!(
+        "\nTests left out, by what they ask that is not checked: {}.\n",
+        counted(&why)
+    );
+    markdown += &format!("\nFailures: {}.\n", failures.len());
     for failure in &failures {
-        println!("  {failure}");
+        markdown += &format!("- {failure}\n");
     }
+    let json = json!({"drafts": drafts, "leftOutBy": why, "failures": failures});
+    publish("suite", &json, &markdown);
 }

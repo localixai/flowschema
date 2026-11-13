@@ -1,13 +1,21 @@
-//! Data checked against a JSON Schema given at run time (`--schema`), tuned for what a language
-//! model writes: drafts 4, 6, 7, 2019-09 and 2020-12, read by the document's `$schema`
-//! (`draft.rs`), compiled once (`compile.rs`, its references through `index.rs` and `uri.rs`)
-//! and walked for each check (`validate.rs`), valid data with no allocation. Formats are checked,
-//! not only noted (`format.rs`), and a pattern by its own matcher (`pattern.rs`). Equality is
-//! JSON's, numbers compare exactly (`number.rs`, `hash.rs`). What a schema asks that is not
-//! checked here is named by [`Schema::unchecked`], never dropped unsaid.
+//! Data checked against a JSON Schema given at run time, tuned for what a language model writes
+//! (a tool call's arguments, a structured answer): drafts 4, 6, 7, 2019-09 and 2020-12, read by
+//! the document's `$schema` (`draft.rs`), compiled once (`compile.rs`, its references through
+//! `index.rs` and `uri.rs`) and walked for each check (`validate.rs`), valid data with no
+//! allocation. Formats are checked, not only noted (`format.rs`), and a pattern by its own
+//! matcher (`pattern.rs`). Equality is JSON's, numbers compare exactly (`number.rs`, `hash.rs`).
+//! What a schema asks that is not checked here is named by [`Schema::unchecked`], never dropped
+//! unsaid.
 //!
 //! The README follows, its example run as a test.
 #![doc = include_str!("../README.md")]
+#![forbid(unsafe_code)]
+
+/// The examples of `docs/`, run as tests so the pages cannot drift from the API.
+#[cfg(doctest)]
+#[doc = include_str!("../docs/agents.md")]
+#[doc = include_str!("../docs/api.md")]
+struct Docs;
 
 mod compile;
 mod draft;
@@ -42,6 +50,8 @@ pub struct Schema {
 }
 
 impl Schema {
+    /// `json` compiled, its draft read from `$schema` (2020-12 when it names none). It never
+    /// fails: what it asks that is not checked here is named by [`Schema::unchecked`].
     pub fn new(json: Value) -> Self {
         Self::with_documents(json, &[])
     }

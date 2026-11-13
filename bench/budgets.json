@@ -1,0 +1,42 @@
+{
+  "$comment": "What flowschema holds itself to. `cargo run --release --bin check` reads results/*.json and fails on any rule a run breaks. Change a number only together with its reason in the pull request.",
+  "rules": [
+    {
+      "id": "no-allocation",
+      "about": "A check allocates nothing, valid data or not; a `uniqueItems` keeps one set of the items' hashes.",
+      "max": 0,
+      "except": { "`uniqueItems`, 1,000 strings": 1 }
+    },
+    {
+      "id": "never-slower",
+      "about": "No typical check, compile or message is slower than jsonschema's.",
+      "minRatio": 1.0
+    },
+    {
+      "id": "suite",
+      "about": "Every test of the official JSON-Schema-Test-Suite it checks passes, on every draft.",
+      "maxFailures": 0
+    },
+    {
+      "id": "corpus-labels",
+      "about": "At least 99.95% of MaskBench's answers are judged as labelled.",
+      "minShare": 99.95
+    },
+    {
+      "id": "corpus-panics",
+      "about": "No schema of MaskBench makes it panic.",
+      "max": 0
+    },
+    {
+      "id": "corpus-speed",
+      "about": "On MaskBench it compiles at least 1.5x and checks at least 1.2x faster than jsonschema.",
+      "minCompileRatio": 1.5,
+      "minCheckRatio": 1.2
+    },
+    {
+      "id": "size",
+      "about": "It adds at most 300 KB to a release binary built for size; jsonschema is the comparison.",
+      "maxBytes": 307200
+    }
+  ]
+}

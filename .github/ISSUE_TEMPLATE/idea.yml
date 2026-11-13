@@ -1,0 +1,16 @@
+name: Something an agent needs
+description: A keyword, a format, a message or a way of checking that an agent's JSON needs
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What the agent needs
+      description: The case, before the solution. A real tool's parameters or a real structured answer helps most.
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: A schema and data that show it
+      render: json

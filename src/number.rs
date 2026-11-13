@@ -1,7 +1,6 @@
 //! Numbers as JSON Schema reads them: an integer is any number with no fraction (`1.0` is one),
 //! two numbers are equal by value whatever their spelling, and `multipleOf` divides exactly in
-//! decimal (`0.0075` is a multiple of `0.0001`, which dividing the floats says it is not), as
-//! jsonschema-rs and boon do.
+//! decimal (`0.0075` is a multiple of `0.0001`, which dividing the floats says it is not).
 
 use std::cmp::Ordering;
 use std::fmt::Write as _;

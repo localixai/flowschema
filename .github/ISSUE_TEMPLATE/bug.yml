@@ -1,0 +1,34 @@
+name: A wrong verdict or message
+description: Data flowschema judges wrongly, a message that misleads, or a panic
+labels: [bug]
+body:
+  - type: textarea
+    id: schema
+    attributes:
+      label: The schema
+      description: The smallest schema that shows it.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: data
+    attributes:
+      label: The data
+      description: What was checked against it.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: seen
+    attributes:
+      label: What flowschema says, and what you expected
+      description: The verdict or the messages, and why the other is right (the draft's text, the official test suite, another validator).
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: flowschema version, or the commit
+      placeholder: v0.1.0
+    validations:
+      required: true

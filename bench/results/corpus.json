@@ -1,0 +1,26 @@
+{
+  "agreed": 36964,
+  "answers": 36990,
+  "checkMs": {
+    "jsonschema": 12.466881706775805,
+    "ours": 8.731201730864273
+  },
+  "compileMs": {
+    "jsonschema": 1059.7396220142066,
+    "ours": 520.8296311101399
+  },
+  "files": 11306,
+  "jsonschemaRight": 36970,
+  "oursRight": 36984,
+  "panicked": 0,
+  "refused": 8,
+  "schemas": 11298,
+  "slower": 350,
+  "timed": 9779,
+  "unchecked": {
+    "$ref outside the schema": 1,
+    "format": 1,
+    "pattern": 19
+  },
+  "withUnchecked": 21
+}
