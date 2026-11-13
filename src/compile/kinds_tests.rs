@@ -7,6 +7,7 @@ use crate::node::{BOOLEAN, INTEGER, Items, NULL, NUMBER, Node, STRING};
 fn folded(schema: &serde_json::Value) -> Option<u8> {
     match compile(schema, &[]).nodes.first() {
         Some(Node::Rules(rules)) => rules.only_types,
+        Some(Node::Types(types, _)) => Some(*types),
         Some(Node::Any | Node::Never) | None => None,
     }
 }
@@ -54,6 +55,7 @@ fn a_ref_and_nothing_else_takes_the_types_it_lands_on() {
     let types: Vec<Option<u8>> = (nodes.iter())
         .map(|node| match node {
             Node::Rules(rules) => rules.only_types,
+            Node::Types(types, _) => Some(*types),
             Node::Any | Node::Never => None,
         })
         .collect();
@@ -68,7 +70,7 @@ fn an_array_of_typed_items_with_a_count_is_planned_and_judged_as_walked() {
             .plain_array
             .as_ref()
             .map(|plan| (plan.min, plan.max, plan.items)),
-        Some(Node::Any | Node::Never) | None => None,
+        Some(Node::Any | Node::Never | Node::Types(..)) | None => None,
     };
     let pair = json!({"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number"}});
     assert_eq!(plain(&pair), Some((2, 2, Items::Types(NUMBER | INTEGER))));

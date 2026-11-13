@@ -28,7 +28,7 @@ pub(crate) fn is_integer(value: &Value) -> bool {
 pub(crate) fn json_eq(a: &Value, b: &Value) -> bool {
     match (a, b) {
         (Value::Number(a), Value::Number(b)) => numbers_eq(a, b),
-        (Value::String(a), Value::String(b)) => same_text(a, b),
+        (Value::String(a), Value::String(b)) => crate::text::same_text(a, b),
         (Value::Array(a), Value::Array(b)) => {
             a.len() == b.len() && a.iter().zip(b).all(|(a, b)| json_eq(a, b))
         }
@@ -39,25 +39,6 @@ pub(crate) fn json_eq(a: &Value, b: &Value) -> bool {
         }
         (a, b) => a == b,
     }
-}
-
-/// Whether two strings are the same, eight bytes at a time and inline: an `enum`'s options are
-/// short, and a call to the system's `memcmp` for each costs more than the comparison.
-#[inline]
-pub(crate) fn same_text(a: &str, b: &str) -> bool {
-    let (mut a, mut b) = (a.as_bytes(), b.as_bytes());
-    if a.len() != b.len() {
-        return false;
-    }
-    while let (Some((x, rest_a)), Some((y, rest_b))) =
-        (a.split_first_chunk::<8>(), b.split_first_chunk::<8>())
-    {
-        if x != y {
-            return false;
-        }
-        (a, b) = (rest_a, rest_b);
-    }
-    a.iter().zip(b).all(|(x, y)| x == y)
 }
 
 fn numbers_eq(a: &Number, b: &Number) -> bool {

@@ -12,8 +12,4 @@ fn a_document_is_read_by_the_draft_it_names_and_2020_12_by_default() {
         Draft::Nineteen
     );
     assert_eq!(Draft::of(&json!({"type": "object"})), Draft::Twenty);
-    assert!(!Draft::Four.knows("if") && Draft::Seven.knows("if"));
-    assert!(Draft::Seven.knows("dependencies") && !Draft::Twenty.knows("dependencies"));
-    assert!(!Draft::Nineteen.knows("prefixItems") && Draft::Twenty.knows("prefixItems"));
-    assert!(Draft::Four.knows("properties"));
 }

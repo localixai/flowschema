@@ -26,6 +26,7 @@ mod node;
 mod number;
 mod pattern;
 mod report;
+mod text;
 mod uri;
 mod validate;
 
@@ -94,7 +95,9 @@ impl Schema {
 
     /// Whether `data` matches: the quick check, which stops at the first failure and says nothing.
     pub fn matches(&self, data: &Value) -> bool {
-        self.walk().node(0, data, &At::Root, Report::quiet(), 0)
+        // A schema that is one leaf is settled where it stands, as a field's value is.
+        let walk = self.walk();
+        walk.leaf_holds(0, data) || walk.node(0, data, &At::Root, Report::quiet(), 0)
     }
 
     /// Every way `data` does not match, the first twenty, its places written from `data`

@@ -2,7 +2,7 @@
 
 <p align="center">
   <strong>JSON Schema for agents: tool calls and structured output, checked as models write them</strong><br>
-  Drafts 4 to 2020-12 · 2 dependencies · 293 KB · no allocation on a check · 1.43× faster on real LLM schemas
+  Drafts 4 to 2020-12 · 2 dependencies · 293 KB · no allocation on a check · compiles 3.74× faster than jsonschema
 </p>
 
 <p align="center">
@@ -55,9 +55,13 @@ assert!(schema.unchecked().is_empty());
 
 ## Why
 
-- **Fast.** On MaskBench's 11,306 schemas of real LLM tasks it compiles 2.03× faster than the
-  `jsonschema` crate, and checks every answer of the 9,779 both check whole 1.43× faster; no
-  typical check is slower. A union of 64 tool calls is checked in 6.00 µs.
+- **Fast to compile.** An agent's schemas arrive at run time, often with every request. On
+  MaskBench's 11,306 schemas of real LLM tasks flowschema compiles 3.74× faster than the
+  `jsonschema` crate (133.0 ms against 497.6 ms); a review's verdict compiles in 1.13 µs,
+  where `jsonschema` takes 6.51 µs.
+- **About as fast to check.** A review's verdict is checked in 160 ns and a union of 64 tool
+  calls in 3.50 µs, beside `jsonschema`'s 166 ns and 3.85 µs; every answer of the 9,779
+  schemas both check whole takes flowschema 5.03 ms and `jsonschema` 4.48 ms.
 - **No allocation.** A check allocates nothing, valid data or not; the benchmarks count every
   allocation and fail a run that makes one.
 - **Messages a model can act on.** Each says where the value is, the rule it breaks and what the

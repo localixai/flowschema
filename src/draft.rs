@@ -1,7 +1,8 @@
 //! Which JSON Schema a document is written to (its `$schema`; 2020-12 when it names none), and
-//! what that changes: the keywords it knows (one it does not is a word of the schema's own, and
-//! asks nothing), how it names a resource (`id` before draft 6), whether a `$ref` hides the
-//! keywords beside it (up to draft 7), and whether `1.0` is an integer (not in draft 4).
+//! what that changes: whether a `$ref` hides the keywords beside it (up to draft 7), whether `1.0`
+//! is an integer (not in draft 4), and how the bounds are written. The keywords each draft knows,
+//! and the one that names a resource (`id` before draft 6), are read in `compile/read.rs`; one
+//! it does not know is a word of the schema's own, and asks nothing.
 
 use serde_json::Value;
 
@@ -29,34 +30,6 @@ impl Draft {
         .into_iter()
         .find(|(name, _)| named.contains(name))
         .map_or(Draft::Twenty, |(_, draft)| draft)
-    }
-
-    /// Whether `keyword` means anything in this draft.
-    pub(crate) fn knows(self, keyword: &str) -> bool {
-        match keyword {
-            "const" | "contains" | "propertyNames" => self >= Draft::Six,
-            "if" | "then" | "else" => self >= Draft::Seven,
-            "dependencies" => self <= Draft::Seven,
-            "dependentRequired"
-            | "dependentSchemas"
-            | "minContains"
-            | "maxContains"
-            | "unevaluatedProperties"
-            | "unevaluatedItems"
-            | "$anchor" => self >= Draft::Nineteen,
-            "$recursiveRef" | "$recursiveAnchor" => self == Draft::Nineteen,
-            "prefixItems" | "$dynamicRef" | "$dynamicAnchor" => self == Draft::Twenty,
-            "additionalItems" => self <= Draft::Nineteen,
-            _ => true,
-        }
-    }
-
-    /// The keyword that names a resource.
-    pub(crate) fn id_keyword(self) -> &'static str {
-        match self {
-            Draft::Four => "id",
-            Draft::Six | Draft::Seven | Draft::Nineteen | Draft::Twenty => "$id",
-        }
     }
 
     /// Whether a `$ref` hides every keyword beside it.

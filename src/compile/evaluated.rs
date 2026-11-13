@@ -58,7 +58,7 @@ fn takes_all(nodes: &[Node], rules: &Rules, of: Of, depth: usize, asker: Asker) 
     here || depth > 0
         && (rules.reference.iter().chain(rules.all_of.iter())).any(|id| match nodes.get(*id) {
             Some(Node::Rules(applied)) => takes_all(nodes, applied, of, depth - 1, Asker::Applied),
-            Some(Node::Any | Node::Never) | None => false,
+            Some(Node::Any | Node::Never | Node::Types(..)) | None => false,
         })
 }
 

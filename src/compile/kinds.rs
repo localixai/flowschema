@@ -64,7 +64,7 @@ fn items(nodes: &[Node], rest: Id) -> Option<Items> {
         match nodes.get(id)? {
             Node::Rules(rules) if rules.plain_array.is_some() => return Some(Items::Plain(id)),
             Node::Rules(rules) => id = rules.alias?,
-            Node::Any | Node::Never => return None,
+            Node::Any | Node::Never | Node::Types(..) => return None,
         }
     }
     None
@@ -109,6 +109,7 @@ fn types(nodes: &[Node], id: Id) -> Option<u8> {
         match nodes.get(id)? {
             Node::Any => return Some(ALL),
             Node::Never => return Some(0),
+            Node::Types(types, _) => return Some(*types),
             Node::Rules(rules) => match (rules.only_types, rules.alias) {
                 (Some(types), _) => return Some(types),
                 (None, Some(target)) => id = target,

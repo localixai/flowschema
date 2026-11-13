@@ -6,10 +6,11 @@ use serde_json::Value;
 use super::Walk;
 use crate::compile::tags::Tag;
 use crate::node::{
-    ALL, ARRAY, BOOLEAN, HAS_KIND, HAS_STRING, Id, Items, NULL, NUMBER, Node, OBJECT, PlainArray,
-    STRING, kind_of,
+    ALL, ARRAY, BOOLEAN, HAS_KIND, HAS_STRING, Id, Items, Leaf, NULL, NUMBER, Node, OBJECT,
+    PlainArray, Rules, STRING, kind_of,
 };
 use crate::report::{At, Report, said};
+use crate::text::same_text;
 
 impl Walk<'_> {
     /// A field's `name` held to `propertyNames`' node `id`, read where it is, with no string
@@ -29,6 +30,8 @@ impl Walk<'_> {
                 return Some(false);
             }
             None => return None,
+            // A name is a string: one asked to be a string matches, one asked not to is walked.
+            Some(Node::Types(types, _)) => return (types & STRING != 0).then_some(true),
             Some(Node::Rules(rules)) => rules,
         };
         let types_only = rules.has & !(HAS_KIND | HAS_STRING) == 0
@@ -49,6 +52,49 @@ impl Walk<'_> {
             .is_some_and(|types| self.has_type(types, value))
     }
 
+    /// Whether node `id` is a leaf that surely holds `value` (`Leaf`), asked of a field's value
+    /// where `fits` could not say: out of the walk's way, so its every call does not grow by it.
+    #[inline(never)]
+    pub(crate) fn leaf_holds(&self, id: Id, value: &Value) -> bool {
+        match self.nodes.get(id) {
+            Some(Node::Rules(rules)) => self.settles(rules, value),
+            Some(Node::Any | Node::Never | Node::Types(..)) | None => false,
+        }
+    }
+
+    /// Whether the leaf `rules` surely holds `value`; `false` where it must be walked.
+    #[inline]
+    fn settles(&self, rules: &Rules, value: &Value) -> bool {
+        match rules.leaf {
+            Leaf::Walked => false,
+            Leaf::Strings => {
+                value
+                    .as_str()
+                    .is_some_and(|text| match (&rules.table, &rules.options) {
+                        (Some(table), Some(Value::Array(options))) => table.holds(options, value),
+                        (None, Some(Value::Array(options))) => (options.iter()).any(|option| {
+                            option.as_str().is_some_and(|known| same_text(known, text))
+                        }),
+                        (Some(_) | None, Some(_) | None) => false,
+                    })
+            }
+            Leaf::Range => value.as_i64().is_some_and(|n| {
+                (rules.limits.iter())
+                    .all(|(limit, sign)| limit.as_i64().is_some_and(|l| sign.holds_whole(n, l)))
+            }),
+            Leaf::Text => value.as_str().is_some_and(|text| {
+                let bytes = text.len() as u64;
+                rules.max_length.is_none_or(|most| bytes <= most)
+                    && rules.min_length.is_none_or(|least| bytes / 4 >= least)
+                    && rules.pattern.is_none_or(|place| self.matches(place, text))
+                    && rules
+                        .format
+                        .as_ref()
+                        .is_none_or(|(_, check)| check(text.as_bytes()))
+            }),
+        }
+    }
+
     /// Whether `value` matches the array `plan` describes: its type, its count, its items' type.
     #[inline]
     pub(super) fn plain(&self, plan: &PlainArray, value: &Value) -> bool {
@@ -66,7 +112,7 @@ impl Walk<'_> {
                                     items.iter().all(|item| self.plain(inner, item))
                                 })
                             }
-                            Some(Node::Any | Node::Never) | None => false,
+                            Some(Node::Any | Node::Never | Node::Types(..)) | None => false,
                         },
                     }
             }
@@ -84,6 +130,7 @@ impl Walk<'_> {
     pub(super) fn types_of(&self, id: Id) -> Option<u8> {
         match self.nodes.get(id) {
             Some(Node::Any) => Some(ALL),
+            Some(Node::Types(types, _)) => Some(*types),
             Some(Node::Rules(rules)) => rules.only_types,
             Some(Node::Never) | None => None,
         }

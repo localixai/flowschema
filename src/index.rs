@@ -10,34 +10,6 @@ use serde_json::Value;
 use crate::draft::Draft;
 use crate::uri::{self, BASE};
 
-/// Keywords whose value is a schema.
-const ONE: [&str; 13] = [
-    "additionalProperties",
-    "additionalItems",
-    "items",
-    "contains",
-    "propertyNames",
-    "not",
-    "if",
-    "then",
-    "else",
-    "unevaluatedProperties",
-    "unevaluatedItems",
-    "contentSchema",
-    "$recursiveRef",
-];
-/// Keywords whose value is a list of schemas.
-const LIST: [&str; 5] = ["allOf", "anyOf", "oneOf", "prefixItems", "items"];
-/// Keywords whose value maps names to schemas.
-const MAP: [&str; 6] = [
-    "properties",
-    "patternProperties",
-    "$defs",
-    "definitions",
-    "dependentSchemas",
-    "dependencies",
-];
-
 /// A document's resources and anchors.
 pub(crate) struct Index<'j> {
     resources: HashMap<String, &'j Value>,
@@ -76,16 +48,32 @@ impl<'j> Index<'j> {
         let Value::Object(rules) = schema else {
             return;
         };
-        let hidden = draft.ref_alone() && rules.contains_key("$ref");
-        let id = (rules.get(draft.id_keyword()).and_then(Value::as_str)).filter(|_| !hidden);
-        let mut here = base.to_string();
+        // What names a resource or an anchor, read in one pass over the fields.
+        let (mut referred, mut id, mut anchor, mut dynamic, mut recursive) =
+            (false, None, None, None, false);
+        for (key, value) in rules {
+            match key.as_str() {
+                "$ref" => referred = true,
+                "$id" if draft != Draft::Four => id = value.as_str(),
+                "id" if draft == Draft::Four => id = value.as_str(),
+                "$anchor" if draft >= Draft::Nineteen => anchor = value.as_str(),
+                "$dynamicAnchor" if draft == Draft::Twenty => dynamic = value.as_str(),
+                "$recursiveAnchor" if draft == Draft::Nineteen => {
+                    recursive = *value == Value::Bool(true);
+                }
+                _ => {}
+            }
+        }
+        let id = id.filter(|_| !(draft.ref_alone() && referred));
+        // A new base only where an id names a resource: no copy of the base for each schema.
+        let mut named = None;
         if let Some(id) = id {
             let resolved = uri::resolve(base, id);
             let (resource, fragment) = uri::split(&resolved);
             match (fragment.is_empty(), draft >= Draft::Nineteen) {
                 (true, _) => {
                     self.resources.insert(resource.to_string(), schema);
-                    here = resource.to_string();
+                    named = Some(resource.to_string());
                 }
                 // Before 2019-09 an id that is only a fragment is an anchor.
                 (false, false) if !fragment.starts_with('/') => {
@@ -94,44 +82,75 @@ impl<'j> Index<'j> {
                 (false, true | false) => {}
             }
         }
-        let named = |key: &str| rules.get(key).and_then(Value::as_str);
-        if let Some(name) = named("$anchor").filter(|_| draft >= Draft::Nineteen) {
+        let here = named.as_deref().unwrap_or(base);
+        if let Some(name) = anchor {
             self.anchors.insert(format!("{here}#{name}"), schema);
         }
-        if let Some(name) = named("$dynamicAnchor").filter(|_| draft == Draft::Twenty) {
+        if let Some(name) = dynamic {
             self.anchors.insert(format!("{here}#{name}"), schema);
             *self.dynamic.entry(name.to_string()).or_default() += 1;
         }
-        if draft == Draft::Nineteen && rules.get("$recursiveAnchor") == Some(&Value::Bool(true)) {
+        if recursive {
             self.recursive += 1;
         }
         for (key, value) in rules {
-            match value {
-                Value::Array(items) if LIST.contains(&key.as_str()) => {
-                    items.iter().for_each(|item| self.walk(item, &here, draft));
+            match (key.as_str(), value) {
+                // Keywords whose value is a list of schemas.
+                ("allOf" | "anyOf" | "oneOf" | "prefixItems" | "items", Value::Array(items)) => {
+                    items.iter().for_each(|item| self.walk(item, here, draft));
                 }
-                Value::Object(named) if MAP.contains(&key.as_str()) => {
-                    named
-                        .values()
-                        .for_each(|item| self.walk(item, &here, draft));
-                }
-                _ if ONE.contains(&key.as_str()) => self.walk(value, &here, draft),
-                Value::Null
-                | Value::Bool(_)
-                | Value::Number(_)
-                | Value::String(_)
-                | Value::Array(_)
-                | Value::Object(_) => {}
+                // Keywords whose value maps names to schemas.
+                (
+                    "properties" | "patternProperties" | "$defs" | "definitions"
+                    | "dependentSchemas" | "dependencies",
+                    Value::Object(named),
+                ) => named.values().for_each(|item| self.walk(item, here, draft)),
+                // Keywords whose value is a schema.
+                (
+                    "additionalProperties"
+                    | "additionalItems"
+                    | "items"
+                    | "contains"
+                    | "propertyNames"
+                    | "not"
+                    | "if"
+                    | "then"
+                    | "else"
+                    | "unevaluatedProperties"
+                    | "unevaluatedItems"
+                    | "contentSchema"
+                    | "$recursiveRef",
+                    _,
+                ) => self.walk(value, here, draft),
+                _ => {}
             }
         }
     }
 
     /// Whether the metaschema `root` names, where it is one of the documents, takes the
     /// validation vocabulary: one that lists its `$vocabulary` without it asks for none of
-    /// `type`, `minimum`, `required` and the like.
-    pub(crate) fn validates(&self, root: &Value) -> bool {
+    /// `type`, `minimum`, `required` and the like. The documents are looked in by their URIs;
+    /// only a metaschema outside json-schema.org that none of them is (one a schema holds inside
+    /// it) needs the documents walked.
+    pub(crate) fn validates(
+        root: &'j Value,
+        documents: &'j [(String, Value)],
+        draft: Draft,
+    ) -> bool {
         let named = root.get("$schema").and_then(Value::as_str).unwrap_or("");
-        let meta = self.resources.get(uri::split(named).0);
+        if named.is_empty() {
+            return true;
+        }
+        let wanted = uri::split(named).0;
+        let given = (documents.iter()).find(|(uri, _)| uri::split(uri).0 == wanted);
+        let meta = match given {
+            Some((_, document)) => Some(document),
+            None if named.contains("json-schema.org") => None,
+            None => Index::build(root, documents, draft)
+                .resources
+                .get(wanted)
+                .copied(),
+        };
         let listed = meta
             .and_then(|meta| meta.get("$vocabulary"))
             .and_then(Value::as_object);

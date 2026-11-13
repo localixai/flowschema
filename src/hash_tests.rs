@@ -44,8 +44,12 @@ fn many_options_are_a_table_and_few_are_not() {
 
 #[test]
 fn many_names_are_found_by_hash_and_few_are_not_tabled() {
-    let names: Vec<(Box<str>, usize, u64)> = (0..40)
-        .map(|n| (format!("field_{n}").into(), n, 0))
+    let names: Vec<Property> = (0..40)
+        .map(|n| Property {
+            name: format!("field_{n}").into(),
+            id: n,
+            bit: 0,
+        })
         .collect();
     let table = Names::of(&names).unwrap();
     assert_eq!(table.find(&names, "field_39"), Some(39));

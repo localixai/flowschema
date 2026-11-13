@@ -4,6 +4,7 @@
 //! only branches that can match: a branch that requires it and does not allow the value fails
 //! whatever else it asks, as its keywords all must hold. The walk then tries those alone.
 
+use crate::text::{field, order};
 use serde_json::Value;
 
 use super::each;
@@ -29,9 +30,9 @@ impl Tag {
     /// nothing (the value is not an object), and every branch is tried.
     pub(crate) fn picks(&self, value: &Value) -> Option<(&[u32], &[u32])> {
         let fields = value.as_object()?;
-        let tagged: &[u32] = match fields.get(&*self.name) {
+        let tagged: &[u32] = match field(fields, &self.name) {
             Some(Value::String(text)) => (self.by_value)
-                .binary_search_by(|(option, _)| (**option).cmp(text.as_str()))
+                .binary_search_by(|(option, _)| order(option.as_bytes(), text.as_bytes()))
                 .ok()
                 .and_then(|at| self.by_value.get(at))
                 .map_or(&[], |(_, branches)| branches),
@@ -129,7 +130,12 @@ fn fields<'n>(nodes: &'n [Node], id: Id, depth: usize, out: &mut Vec<&'n str>) {
         return;
     };
     if let Some(objects) = &rules.object {
-        out.extend(objects.required.iter().map(|name| &**name));
+        out.extend(
+            objects
+                .required
+                .iter()
+                .map(|field| objects.required_name(field)),
+        );
     }
     if let Some(depth) = depth.checked_sub(1) {
         for next in rules
@@ -145,7 +151,9 @@ fn fields<'n>(nodes: &'n [Node], id: Id, depth: usize, out: &mut Vec<&'n str>) {
 /// Whether the branch requires the field `name`.
 fn required(nodes: &[Node], id: Id, name: &str, depth: usize) -> bool {
     chain(nodes, id, depth, &mut |rules| {
-        (rules.object.as_ref()).is_some_and(|objects| objects.required.iter().any(|n| **n == *name))
+        (rules.object.as_ref()).is_some_and(|objects| {
+            (objects.required.iter()).any(|field| objects.required_name(field) == name)
+        })
     })
 }
 
@@ -154,9 +162,9 @@ fn strings<'n>(nodes: &'n [Node], id: Id, name: &str, depth: usize) -> Option<Ve
     let mut found = None;
     chain(nodes, id, depth, &mut |rules| {
         let field = (rules.object.as_ref())
-            .and_then(|objects| objects.properties.iter().find(|(n, _, _)| **n == *name));
-        if let Some((_, field, _)) = field {
-            found = allowed(nodes, *field, depth);
+            .and_then(|objects| (objects.properties.iter()).find(|p| *p.name == *name));
+        if let Some(field) = field {
+            found = allowed(nodes, field.id, depth);
         }
         found.is_some()
     });

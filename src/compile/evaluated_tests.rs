@@ -8,7 +8,7 @@ use crate::node::Node;
 fn settled(schema: &serde_json::Value) -> (bool, bool) {
     match compile(schema, &[]).nodes.first() {
         Some(Node::Rules(rules)) => (rules.every_field_seen, rules.every_item_seen),
-        Some(Node::Any | Node::Never) | None => (false, false),
+        Some(Node::Any | Node::Never | Node::Types(..)) | None => (false, false),
     }
 }
 

@@ -9,6 +9,7 @@ use super::cursor::Cursor;
 use crate::hash;
 use crate::node::{Arrays, Extra, Objects};
 use crate::report::{At, Report, said};
+use crate::text::field;
 
 impl Walk<'_> {
     /// `items`, `prefixItems` (or draft 7's `items` as a list with `additionalItems`), `minItems`,
@@ -102,17 +103,19 @@ impl Walk<'_> {
         // looked up, and the rest are never read.
         if open && fields.len() > objects.properties.len() {
             let mut met = 0;
-            for (name, id, bit) in &objects.properties {
-                let Some(value) = fields.get(&**name) else {
+            for property in &objects.properties {
+                let (name, id) = (&*property.name, property.id);
+                let Some(value) = field(fields, name) else {
                     // A required field looked up and not there: no need to read on.
-                    if bits.is_some() && *bit != 0 {
+                    if bits.is_some() && property.bit != 0 {
                         return r.no(String::new);
                     }
                     continue;
                 };
-                met |= bit;
-                let ok =
-                    self.fits(*id, value) || self.node(*id, value, &At::Key(at, name), r.part(), 0);
+                met |= property.bit;
+                let ok = self.fits(id, value)
+                    || self.leaf_holds(id, value)
+                    || self.node(id, value, &At::Key(at, name), r.part(), 0);
                 if !r.took(ok) {
                     return false;
                 }
@@ -155,12 +158,14 @@ impl Walk<'_> {
                 // a hash is worth its cost only where the schema names far more than come.
                 Some(lookup) if sparse => (lookup.find(&objects.properties, name))
                     .and_then(|place| objects.properties.get(place))
-                    .map(|(_, id, bit)| (*id, *bit)),
+                    .map(|property| (property.id, property.bit)),
                 Some(_) | None => cursor.find(name),
             };
             if let Some((id, bit)) = found {
                 (met, named) = (met | bit, true);
-                let ok = self.fits(id, value) || self.node(id, value, &here, r.part(), 0);
+                let ok = self.fits(id, value)
+                    || self.leaf_holds(id, value)
+                    || self.node(id, value, &here, r.part(), 0);
                 if !r.took(ok) {
                     return false;
                 }
@@ -233,7 +238,7 @@ impl Walk<'_> {
             return false;
         }
         for (name, id) in &objects.dependent_schemas {
-            if fields.contains_key(&**name) {
+            if field(fields, name).is_some() {
                 let ok = self.node(*id, object, at, r.part(), 0);
                 if !r.took(ok) {
                     return false;
@@ -251,8 +256,9 @@ fn missing<const F: bool>(
     at: &At<'_>,
     r: &mut Report<'_, F>,
 ) -> bool {
-    for name in &objects.required {
-        if !fields.contains_key(&**name) && !r.no(|| said!("{at} is missing \"{name}\"")) {
+    for wanted in &objects.required {
+        let name = objects.required_name(wanted);
+        if field(fields, name).is_none() && !r.no(|| said!("{at} is missing \"{name}\"")) {
             return false;
         }
     }
@@ -278,10 +284,10 @@ fn counts<const F: bool>(
         return false;
     }
     for (name, needs) in &objects.dependent {
-        if !fields.contains_key(&**name) {
+        if field(fields, name).is_none() {
             continue;
         }
-        for need in needs.iter().filter(|need| !fields.contains_key(&***need)) {
+        for need in needs.iter().filter(|need| field(fields, need).is_none()) {
             if !r.no(|| said!("{at} has \"{name}\", so it must have \"{need}\"")) {
                 return false;
             }

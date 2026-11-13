@@ -9,6 +9,7 @@ use super::cursor::Cursor;
 use super::{DEPTH, Walk};
 use crate::node::{Id, Node, Rules};
 use crate::report::{At, Report, said};
+use crate::text::field;
 
 /// The fields or items whose marks are kept on the stack: an object or array of more takes them
 /// on the heap.
@@ -57,7 +58,7 @@ impl Walk<'_> {
                 Some(Node::Never) => {
                     r.no(|| said!("{at} has \"{name}\", which the schema does not allow"))
                 }
-                Some(Node::Any | Node::Rules(_)) | None => {
+                Some(Node::Any | Node::Types(..) | Node::Rules(_)) | None => {
                     self.node(rest, value, &At::Key(at, name), r.part(), 0)
                 }
             };
@@ -149,7 +150,7 @@ impl Walk<'_> {
         }
         if let (Of::Fields(fields), Some(objects)) = (of, &rules.object) {
             for (name, id) in &objects.dependent_schemas {
-                if fields.contains_key(&**name) {
+                if field(fields, name).is_some() {
                     self.mark_node(*id, value, of, seen, refs);
                 }
             }

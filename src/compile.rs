@@ -7,11 +7,13 @@ mod containers;
 mod evaluated;
 mod keywords;
 mod kinds;
+mod leaves;
+mod read;
 pub(crate) mod tags;
 
 use std::collections::HashMap;
 
-use serde_json::{Map, Value};
+use serde_json::Value;
 
 use crate::draft::Draft;
 use crate::format;
@@ -21,6 +23,7 @@ use crate::node::{HAS_KIND, Id, Node, Rules, kind_of};
 use crate::uri::{self, BASE};
 
 use keywords::{count, limits, types};
+use read::Keywords;
 
 /// A schema compiled: its nodes (the root's the first), its patterns' sources, and what it
 /// does not check.
@@ -34,11 +37,12 @@ pub(crate) struct Compiled {
 /// `root` compiled, its references landing in it or in `documents`.
 pub(crate) fn compile(root: &Value, documents: &[(String, Value)]) -> Compiled {
     let draft = Draft::of(root);
-    let index = Index::build(root, documents, draft);
     let mut compiler = Compiler {
         draft,
-        validation: draft < Draft::Nineteen || index.validates(root),
-        index,
+        validation: draft < Draft::Nineteen || Index::validates(root, documents, draft),
+        root,
+        documents,
+        index: None,
         nodes: vec![],
         refs: HashMap::new(),
         patterns: vec![],
@@ -67,7 +71,7 @@ fn each<T>(
     let found: Vec<(usize, T)> = (nodes.iter().enumerate())
         .filter_map(|(at, node)| match node {
             Node::Rules(rules) => find(nodes, rules).map(|it| (at, it)),
-            Node::Any | Node::Never => None,
+            Node::Any | Node::Never | Node::Types(..) => None,
         })
         .collect();
     let any = !found.is_empty();
@@ -83,7 +87,11 @@ struct Compiler<'j> {
     draft: Draft,
     /// Whether the validation vocabulary is in force (the metaschema's `$vocabulary`).
     validation: bool,
-    index: Index<'j>,
+    root: &'j Value,
+    documents: &'j [(String, Value)],
+    /// Where a reference can land, built the first time one is read: a schema with no `$ref`
+    /// (most of an agent's) is never walked for it.
+    index: Option<Index<'j>>,
     nodes: Vec<Node>,
     /// Each schema a `$ref` landed on, by its address: landed on again, it is the same node.
     refs: HashMap<usize, Id>,
@@ -92,6 +100,13 @@ struct Compiler<'j> {
 }
 
 impl<'j> Compiler<'j> {
+    /// The index of the root and the documents, built on the first call.
+    fn index(&mut self) -> &Index<'j> {
+        let (root, documents, draft) = (self.root, self.documents, self.draft);
+        self.index
+            .get_or_insert_with(|| Index::build(root, documents, draft))
+    }
+
     /// `schema`'s node, read with `base`; its place taken before what it holds is compiled, so a
     /// `$ref` inside it to itself finds it.
     fn node(&mut self, schema: &'j Value, base: &str) -> Id {
@@ -99,7 +114,14 @@ impl<'j> Compiler<'j> {
         self.nodes.push(Node::Any);
         let node = match schema {
             Value::Bool(false) => Node::Never,
-            Value::Object(rules) => Node::Rules(Box::new(self.rules(rules, base))),
+            Value::Object(rules) => {
+                let k = Keywords::of(rules, self.draft);
+                let alone = (k.only_type()).filter(|_| self.validation);
+                match alone.and_then(keywords::alone) {
+                    Some((types, names)) => Node::Types(types, names),
+                    None => Node::Rules(Box::new(self.rules(&k, base))),
+                }
+            }
             Value::Bool(true) | Value::Null | Value::Number(_) | Value::String(_) => Node::Any,
             Value::Array(_) => Node::Any,
         };
@@ -118,7 +140,7 @@ impl<'j> Compiler<'j> {
     /// The node a reference lands on, compiled once; none (noted) where it lands outside the
     /// document.
     fn reference(&mut self, text: &str, base: &str) -> Option<Id> {
-        let Some((target, landed)) = self.index.find(&uri::resolve(base, text)) else {
+        let Some((target, landed)) = self.index().find(&uri::resolve(base, text)) else {
             self.note("$ref outside the schema");
             return None;
         };
@@ -150,10 +172,9 @@ impl<'j> Compiler<'j> {
         }
     }
 
-    fn rules(&mut self, rules: &'j Map<String, Value>, base: &str) -> Rules {
+    fn rules(&mut self, k: &Keywords<'j>, base: &str) -> Rules {
         let draft = self.draft;
-        let get = |key: &str| rules.get(key).filter(|_| draft.knows(key));
-        let referred = get("$ref").and_then(Value::as_str);
+        let referred = k.reference.and_then(Value::as_str);
         // Up to draft 7, a `$ref` is the whole schema: what is beside it, its id too, is not read.
         if let (Some(text), true) = (referred, draft.ref_alone()) {
             return Rules {
@@ -161,38 +182,36 @@ impl<'j> Compiler<'j> {
                 ..Rules::default()
             };
         }
-        let id = get(draft.id_keyword()).and_then(Value::as_str);
+        let id = k.id.and_then(Value::as_str);
         let resolved = id.map(|id| uri::split(&uri::resolve(base, id)).0.to_string());
         let base = resolved
             .as_deref()
             .filter(|base| !base.is_empty())
             .unwrap_or(base);
         // `$dynamicRef` is read even beside a `$ref`, so what it cannot hold to is noted.
-        let dynamic = self.dynamic(rules);
+        let dynamic = self.dynamic(k);
         let reference = referred
             .or(dynamic)
             .and_then(|text| self.reference(text, base));
-        let (types, type_names) = types(get("type"));
-        let condition = get("if").map(|when| {
+        let (types, type_names) = types(k.kind);
+        let condition = k.when.map(|when| {
             let when = self.node(when, base);
-            let then = get("then").map(|schema| self.node(schema, base));
+            let then = k.then.map(|schema| self.node(schema, base));
             (
                 when,
                 then,
-                get("else").map(|schema| self.node(schema, base)),
+                k.otherwise.map(|schema| self.node(schema, base)),
             )
         });
-        let options = get("enum").filter(|options| options.is_array()).cloned();
+        let options = k.options.filter(|options| options.is_array()).cloned();
         let listed = options.as_ref().and_then(Value::as_array);
         let table = listed.and_then(|o| Table::of(o));
         let option_kinds = (listed.into_iter().flatten()).fold(0, |all, o| all | kind_of(o, false));
-        let format = get("format").and_then(Value::as_str);
+        let format = k.format.and_then(Value::as_str);
         if format.is_some_and(format::unchecked) {
             self.note("format");
         }
-        let pattern = get("pattern")
-            .and_then(Value::as_str)
-            .map(|p| self.pattern(p));
+        let pattern = k.pattern.and_then(Value::as_str).map(|p| self.pattern(p));
         let mut built = Rules {
             has: 0,
             reference,
@@ -201,19 +220,19 @@ impl<'j> Compiler<'j> {
             table,
             option_kinds,
             options,
-            constant: get("const").cloned(),
-            all_of: self.many(get("allOf"), base),
-            any_of: self.many(get("anyOf"), base),
-            one_of: self.many(get("oneOf"), base),
-            not: get("not").map(|schema| self.node(schema, base)),
+            constant: k.constant.cloned(),
+            all_of: self.many(k.all_of, base),
+            any_of: self.many(k.any_of, base),
+            one_of: self.many(k.one_of, base),
+            not: k.not.map(|schema| self.node(schema, base)),
             condition,
-            limits: limits(rules, draft),
-            multiple: match get("multipleOf") {
+            limits: limits(k, draft),
+            multiple: match k.multiple_of {
                 Some(Value::Number(m)) => Some(m.clone()),
                 Some(_) | None => None,
             },
-            min_length: count(rules, "minLength"),
-            max_length: count(rules, "maxLength"),
+            min_length: count(k.min_length),
+            max_length: count(k.max_length),
             pattern,
             format: format.and_then(|name| {
                 let hostnames = match draft {
@@ -222,10 +241,10 @@ impl<'j> Compiler<'j> {
                 };
                 Some((name.into(), format::resolve(name, hostnames)?))
             }),
-            array: self.arrays(rules, base),
-            object: self.objects(rules, base),
-            unevaluated_fields: get("unevaluatedProperties").map(|s| self.node(s, base)),
-            unevaluated_items: get("unevaluatedItems").map(|s| self.node(s, base)),
+            array: self.arrays(k, base),
+            object: self.objects(k, base),
+            unevaluated_fields: k.unevaluated_properties.map(|s| self.node(s, base)),
+            unevaluated_items: k.unevaluated_items.map(|s| self.node(s, base)),
             // The rest is set once every node is built: `tags::mark`, `kinds::fold`,
             // `evaluated::settle`.
             ..Rules::default()
@@ -243,22 +262,22 @@ impl<'j> Compiler<'j> {
             && built.constant.is_none())
         .then_some(built.types)
         .flatten();
+        // Known from the node alone: a union folded later (`kinds::fold`) is checked by its
+        // types first, so a leaf found here is never asked of it.
+        built.leaf = leaves::leaf(&built);
         built
     }
 
     /// `$dynamicRef` (2020-12) or `$recursiveRef` (2019-09), read as the plain reference it is
     /// while one resource gives its anchor; past that, noted as not checked here.
-    fn dynamic(&mut self, rules: &'j Map<String, Value>) -> Option<&'j str> {
-        let (text, many) = match self.draft {
+    fn dynamic(&mut self, k: &Keywords<'j>) -> Option<&'j str> {
+        let text = k.dynamic.and_then(Value::as_str)?;
+        let many = match self.draft {
             Draft::Twenty => {
-                let text = rules.get("$dynamicRef").and_then(Value::as_str)?;
                 let name = uri::split(text).1;
-                (text, self.index.dynamic.get(name).copied().unwrap_or(0) > 1)
+                self.index().dynamic.get(name).copied().unwrap_or(0) > 1
             }
-            Draft::Nineteen => {
-                let text = rules.get("$recursiveRef").and_then(Value::as_str)?;
-                (text, self.index.recursive > 1)
-            }
+            Draft::Nineteen => self.index().recursive > 1,
             Draft::Four | Draft::Six | Draft::Seven => return None,
         };
         if many {

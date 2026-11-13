@@ -5,6 +5,7 @@
 
 mod containers;
 mod cursor;
+mod scalars;
 mod shortcut;
 mod unevaluated;
 
@@ -13,9 +14,11 @@ use serde_json::Value;
 use crate::node::{
     HAS_ARRAY, HAS_COMBINED, HAS_KIND, HAS_NUMBER, HAS_OBJECT, HAS_STRING, Id, Node, Rules,
 };
-use crate::number::{self, json_eq};
+use crate::number::json_eq;
 use crate::pattern::Pattern;
 use crate::report::{At, Report, said, short, type_of};
+use crate::text::same_text;
+use scalars::bounds;
 use shortcut::picked;
 
 /// The most `$ref`s followed in a row with no step into the data: a schema that refers to
@@ -44,6 +47,7 @@ impl Walk<'_> {
     ) -> bool {
         let rules = match self.nodes.get(id) {
             Some(Node::Rules(rules)) => rules,
+            Some(Node::Types(types, names)) => return self.typed(*types, *names, value, at, r),
             Some(Node::Never) => {
                 r.no(|| said!("{at} is not allowed"));
                 return false;
@@ -52,6 +56,14 @@ impl Walk<'_> {
         };
         if !F && let Some(plan) = &rules.plain_array {
             return self.plain(plan, value);
+        }
+        // A `$ref` and nothing else is what it lands on: walked there, with nothing after.
+        if let Some(target) = rules.alias {
+            if refs >= DEPTH {
+                r.no(|| said!("{at}: the schema's $ref nests deeper than {DEPTH}"));
+                return false;
+            }
+            return self.node(target, value, at, r, refs + 1);
         }
         if let Some(target) = rules.reference {
             if refs >= DEPTH {
@@ -78,7 +90,9 @@ impl Walk<'_> {
         r.ok()
     }
 
-    /// `unevaluatedItems` of an array, `unevaluatedProperties` of an object.
+    /// `unevaluatedItems` of an array, `unevaluatedProperties` of an object. Inlined in `node`,
+    /// its one caller, so a node that has neither pays for no call.
+    #[inline(always)]
     fn unevaluated<const F: bool>(
         &self,
         rules: &Rules,
@@ -200,7 +214,9 @@ impl Walk<'_> {
 }
 
 impl Walk<'_> {
-    /// `type`, `enum` and `const`.
+    /// `type`, `enum` and `const`. Inlined in `node`, its one caller: most nodes ask a type, and
+    /// a call for each would cost more than the check.
+    #[inline(always)]
     fn kind<const F: bool>(
         &self,
         rules: &Rules,
@@ -212,7 +228,7 @@ impl Walk<'_> {
         if let Some(types) = rules.types
             && types & kind == 0
             && !r.no(|| {
-                let wanted: Vec<&str> = rules.type_names.iter().map(|name| &**name).collect();
+                let wanted = rules.type_names.names();
                 said!(
                     "{at} must be {} (is {})",
                     wanted.join(" or "),
@@ -224,9 +240,13 @@ impl Walk<'_> {
         }
         if let Some(whole @ Value::Array(options)) = &rules.options
             && !(rules.option_kinds & kind != 0
-                && match &rules.table {
-                    Some(table) => table.holds(options, value),
-                    None => options.iter().any(|option| json_eq(option, value)),
+                && match (&rules.table, value) {
+                    (Some(table), _) => table.holds(options, value),
+                    // A string is only another string (`json_eq`), compared where it stands.
+                    (None, Value::String(text)) => options.iter().any(
+                        |option| matches!(option, Value::String(known) if same_text(known, text)),
+                    ),
+                    (None, _) => options.iter().any(|option| json_eq(option, value)),
                 })
             && !r.no(|| said!("{at} must be one of {} (is {})", short(whole), short(value)))
         {
@@ -240,94 +260,11 @@ impl Walk<'_> {
         }
     }
 
-    /// A string's keywords: `minLength` and `maxLength` in characters, `pattern`, `format`.
-    fn text<const F: bool>(
-        &self,
-        rules: &Rules,
-        text: &str,
-        at: &At<'_>,
-        r: &mut Report<'_, F>,
-    ) -> bool {
-        if !length(rules, text, at, r) {
-            return false;
-        }
-        if let Some((source, Some(pattern))) = rules.pattern.and_then(|p| self.patterns.get(p))
-            && !pattern.is_match(text)
-            && !r.no(|| {
-                said!(
-                    "{at} must match the pattern {source:?} (is {})",
-                    short_text(text)
-                )
-            })
-        {
-            return false;
-        }
-        match &rules.format {
-            Some((name, check)) if !check(text.as_bytes()) => {
-                r.no(|| said!("{at} must be a valid {name} (is {})", short_text(text)))
-            }
-            Some(_) | None => true,
-        }
-    }
-
     /// Whether `text` matches the pattern at `place` (one not checked here matches anything).
     pub(super) fn matches(&self, place: usize, text: &str) -> bool {
         match self.patterns.get(place) {
             Some((_, Some(pattern))) => pattern.is_match(text),
             Some((_, None)) | None => true,
         }
-    }
-}
-
-/// A string as a message names it.
-fn short_text(text: &str) -> String {
-    short(&Value::String(text.to_string()))
-}
-
-/// The number bounds, then `multipleOf` (read only where the node has either: `HAS_NUMBER`).
-fn bounds<const F: bool>(
-    rules: &Rules,
-    n: &serde_json::Number,
-    at: &At<'_>,
-    r: &mut Report<'_, F>,
-) -> bool {
-    for (limit, sign) in &rules.limits {
-        if !sign.holds(n, limit) && !r.no(|| said!("{at} must be {} {limit} (is {n})", sign.said()))
-        {
-            return false;
-        }
-    }
-    match &rules.multiple {
-        Some(m) if !number::multiple(n, m) => {
-            r.no(|| said!("{at} must be a multiple of {m} (is {n})"))
-        }
-        Some(_) | None => true,
-    }
-}
-
-/// `minLength` and `maxLength`, in characters (counted only as far as the bound needs).
-fn length<const F: bool>(rules: &Rules, text: &str, at: &At<'_>, r: &mut Report<'_, F>) -> bool {
-    let (least, most) = (rules.min_length, rules.max_length);
-    if least.is_none() && most.is_none() {
-        return true;
-    }
-    // A character takes one to four bytes: the byte count settles most bounds unread.
-    let bytes = text.len() as u64;
-    if most.is_none_or(|most| bytes <= most) && least.is_none_or(|least| bytes / 4 >= least) {
-        return true;
-    }
-    // Past four bytes a character, a quick walk knows the text is too long without counting.
-    if !r.full() && most.is_some_and(|most| bytes > most.saturating_mul(4)) {
-        return r.no(String::new);
-    }
-    let len = text.chars().count() as u64;
-    if let Some(least) = least.filter(|least| len < *least)
-        && !r.no(|| said!("{at} must have at least {least} characters (has {len})"))
-    {
-        return false;
-    }
-    match most.filter(|most| len > *most) {
-        Some(most) => r.no(|| said!("{at} must have at most {most} characters (has {len})")),
-        None => true,
     }
 }

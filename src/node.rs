@@ -14,10 +14,15 @@ pub(crate) type Id = usize;
 /// Field names, as `required` and `dependentRequired` list them.
 pub(crate) type Names = Box<[Box<str>]>;
 
-/// A schema: `true` (or anything that is not an object), `false`, or an object's keywords.
+/// A schema: `true` (or anything that is not an object), `false`, an object that asks only for
+/// types, or an object's keywords.
 pub(crate) enum Node {
     Any,
     Never,
+    /// An object whose one keyword is `type` (annotations aside): its types' bits, and their
+    /// names as written. Most leaves of an agent's schema are one (`{"type": "string",
+    /// "description": "…"}`): no rules are made for it, and the walk checks it where it stands.
+    Types(u8, TypeList),
     Rules(Box<Rules>),
 }
 
@@ -30,7 +35,7 @@ pub(crate) struct Rules {
     /// `type` as `kind_of`'s bits; `None` with no `type`.
     pub(crate) types: Option<u8>,
     /// `type`'s names, as a message says them.
-    pub(crate) type_names: Names,
+    pub(crate) type_names: TypeNames,
     /// `enum` as written: its options, and the whole for a message; with many options, the table
     /// a value is looked up in.
     pub(crate) options: Option<Value>,
@@ -64,6 +69,8 @@ pub(crate) struct Rules {
     /// The types, where they are all the schema asks (`{"type": "string"}`, most leaves): the
     /// walk checks such a value where it stands, with no call.
     pub(crate) only_types: Option<u8>,
+    /// What the node asks, where it is a leaf the walk settles where it stands (`Leaf`).
+    pub(crate) leaf: Leaf,
     /// The node this one only refers to, where a `$ref` is all it asks.
     pub(crate) alias: Option<Id>,
     /// An array that asks only its type, its count and its items' types: the quick walk reads
@@ -73,6 +80,92 @@ pub(crate) struct Rules {
     /// item: `unevaluated*` then finds nothing left (`compile/evaluated.rs`).
     pub(crate) every_field_seen: bool,
     pub(crate) every_item_seen: bool,
+}
+
+/// The names of JSON Schema's types, in the order of their codes in `TypeList`.
+const TYPE_NAMES: [&str; 7] = [
+    "null", "boolean", "integer", "number", "string", "array", "object",
+];
+
+/// Names of types as `type` writes them, packed in a word: three bits a name, in the order
+/// written, so a message says them as the schema did and keeping them allocates nothing.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct TypeList {
+    codes: u32,
+    len: u8,
+}
+
+impl TypeList {
+    /// `names` packed; none where one is not a type's name, or past ten names.
+    pub(crate) fn of<'n>(names: impl Iterator<Item = &'n str>) -> Option<Self> {
+        let mut list = TypeList::default();
+        for name in names {
+            let code = TYPE_NAMES.iter().position(|known| *known == name)?;
+            let code = u32::try_from(code).ok().filter(|_| list.len < 10)?;
+            list.codes |= code << (3 * u32::from(list.len));
+            list.len += 1;
+        }
+        Some(list)
+    }
+
+    /// The names, in the order written.
+    pub(crate) fn names(self) -> Vec<&'static str> {
+        (0..u32::from(self.len))
+            .filter_map(|at| {
+                let code = usize::try_from((self.codes >> (3 * at)) & 0b111).ok()?;
+                TYPE_NAMES.get(code).copied()
+            })
+            .collect()
+    }
+}
+
+/// `type`'s names, for a message: packed where they all name types, else as written.
+pub(crate) enum TypeNames {
+    Packed(TypeList),
+    Written(Names),
+}
+
+impl Default for TypeNames {
+    fn default() -> Self {
+        TypeNames::Packed(TypeList::default())
+    }
+}
+
+impl TypeNames {
+    /// `names` as `type` lists them.
+    pub(crate) fn of<'n>(names: impl Iterator<Item = &'n str> + Clone) -> Self {
+        match TypeList::of(names.clone()) {
+            Some(list) => TypeNames::Packed(list),
+            None => TypeNames::Written(names.map(Into::into).collect()),
+        }
+    }
+
+    /// The names, in the order written.
+    pub(crate) fn names(&self) -> Vec<&str> {
+        match self {
+            TypeNames::Packed(list) => list.names(),
+            TypeNames::Written(names) => names.iter().map(|name| &**name).collect(),
+        }
+    }
+}
+
+/// A leaf the walk settles where it stands (`Walk::leaf_holds`), found as the node is built
+/// (`compile/leaves.rs`). It is sure only where it says a value holds: one it cannot settle so
+/// (a fraction, a long string to count by characters) is walked, and said as the rules say.
+/// It holds nothing of its own (the rules have it), so the rules grow by a byte.
+#[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
+pub(crate) enum Leaf {
+    #[default]
+    Walked,
+    /// An `enum` of strings alone, with a `type` that allows strings or none.
+    Strings,
+    /// Integers within bounds that are integers themselves (`limits`), with a `type` that
+    /// allows integers or none.
+    Range,
+    /// Strings held to a string's keywords alone, with `type` string or none: the length where
+    /// the count of bytes says it holds (`min_length`, `max_length`: at least four bytes a
+    /// character for the least, at most one for the most), then `pattern` and `format`.
+    Text,
 }
 
 /// What an array that asks only its type, its count and its items' types asks.
@@ -97,7 +190,7 @@ impl Rules {
     /// These rules with every keyword of the validation vocabulary taken out, for a schema whose
     /// metaschema leaves that vocabulary out: they then ask only what the applicators do.
     pub(crate) fn without_validation(&mut self) {
-        (self.types, self.type_names) = (None, Box::default());
+        (self.types, self.type_names) = (None, TypeNames::default());
         (self.options, self.table, self.option_kinds, self.constant) = (None, None, 0, None);
         (self.limits, self.multiple) = (Box::default(), None);
         (self.min_length, self.max_length, self.pattern) = (None, None, None);
@@ -178,6 +271,17 @@ impl Sign {
         }
     }
 
+    /// Whether the integer `n` stands so to the integer `limit`.
+    #[inline]
+    pub(crate) fn holds_whole(self, n: i64, limit: i64) -> bool {
+        match self {
+            Sign::AtLeast => n >= limit,
+            Sign::Above => n > limit,
+            Sign::AtMost => n <= limit,
+            Sign::Below => n < limit,
+        }
+    }
+
     pub(crate) fn said(self) -> &'static str {
         match self {
             Sign::AtLeast => ">=",
@@ -199,13 +303,27 @@ pub(crate) struct Arrays {
     pub(crate) contains: Option<(Id, u64, Option<u64>)>,
 }
 
+/// A field `properties` names: its name, its node, and its bit in `required` (none when it is
+/// not required, or past the 64th).
+pub(crate) struct Property {
+    pub(crate) name: Box<str>,
+    pub(crate) id: Id,
+    pub(crate) bit: u64,
+}
+
+/// A field `required` names: most are named by `properties` too, and are their place there, so
+/// their names are not kept twice.
+pub(crate) enum Required {
+    Property(usize),
+    Other(Box<str>),
+}
+
 /// The keywords of an object.
 pub(crate) struct Objects {
-    pub(crate) required: Names,
-    /// `properties` in the order of their names, each with the bit of its place in `required`
-    /// (none when not required or past the 64th): a check that meets them all in the data looks
-    /// none of `required` up.
-    pub(crate) properties: Box<[(Box<str>, Id, u64)]>,
+    pub(crate) required: Box<[Required]>,
+    /// `properties` in the order of their names, each with its bit in `required`: a check that
+    /// meets them all in the data looks none of `required` up.
+    pub(crate) properties: Box<[Property]>,
     /// `properties` by hash, where there are many.
     pub(crate) lookup: Option<crate::hash::Names>,
     /// The bits of every required field `properties` names, when they are all of `required`.
@@ -223,6 +341,16 @@ pub(crate) struct Objects {
     /// Whether any of the counts or the dependencies is said: an object is held to them after
     /// its fields.
     pub(crate) closing: bool,
+}
+
+impl Objects {
+    /// The name of a required field.
+    pub(crate) fn required_name<'o>(&'o self, field: &'o Required) -> &'o str {
+        match field {
+            Required::Property(at) => self.properties.get(*at).map_or("", |p| &p.name),
+            Required::Other(name) => name,
+        }
+    }
 }
 
 /// What a field neither `properties` nor `patternProperties` names is held to.

@@ -4,6 +4,7 @@
 
 use serde_json::Value;
 
+use crate::node::Property;
 use crate::number::{exact, json_eq, whole};
 
 /// Lists this long or shorter are compared item by item: hashing costs more than it saves.
@@ -171,15 +172,16 @@ impl Names {
     /// Past this many properties a field is looked up by hash.
     pub(crate) const PAST: usize = 12;
 
-    pub(crate) fn of<T>(names: &[(Box<str>, T, u64)]) -> Option<Self> {
+    /// The table of `names`; none for a few.
+    pub(crate) fn of(names: &[Property]) -> Option<Self> {
         if names.len() <= Self::PAST {
             return None;
         }
         let len = u32::try_from(names.len()).ok()?;
         let mut slots = vec![0; (names.len() * 2).next_power_of_two()].into_boxed_slice();
         let mask = slots.len() - 1;
-        for (place, (name, _, _)) in (1..=len).zip(names) {
-            let mut at = slot(bytes(9, name.as_bytes()), mask);
+        for (place, property) in (1..=len).zip(names) {
+            let mut at = slot(bytes(9, property.name.as_bytes()), mask);
             while slots.get(at).is_some_and(|slot| *slot != 0) {
                 at = (at + 1) & mask;
             }
@@ -191,15 +193,13 @@ impl Names {
     }
 
     /// The place of `name` among `names` (those the table was made of).
-    pub(crate) fn find<T>(&self, names: &[(Box<str>, T, u64)], name: &str) -> Option<usize> {
+    pub(crate) fn find(&self, names: &[Property], name: &str) -> Option<usize> {
         let mask = self.slots.len() - 1;
         let mut at = slot(bytes(9, name.as_bytes()), mask);
         while let Some(place) = self.slots.get(at).filter(|slot| **slot != 0) {
             let place = usize::try_from(*place).unwrap_or_default().wrapping_sub(1);
-            if names
-                .get(place)
-                .is_some_and(|(known, _, _)| **known == *name)
-            {
+            let known = names.get(place);
+            if known.is_some_and(|known| *known.name == *name) {
                 return Some(place);
             }
             at = (at + 1) & mask;
