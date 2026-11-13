@@ -6,6 +6,10 @@ asserting `format`. The method is in [bench/README.md](../bench/README.md); the 
 the `bench` marks are written by `bench/run.sh` from `bench/results/`, and the machine they ran on
 is in [bench/results/latest.md](../bench/results/latest.md).
 
+<p align="center">
+  <img alt="flowschema beside the jsonschema crate, every panel below in one picture" src="../bench/results/charts/compare.png" width="878">
+</p>
+
 ## Typical checks
 
 The checks an agent makes: a structured answer valid and not, rows and wide objects, a tree by
@@ -75,6 +79,11 @@ The two agree on 99.93% of the answers (`corpus-disagreements.tsv`). 21 schemas 
 | of which its own code | 244 KB |
 | of which regex-lite | 49 KB |
 | jsonschema 0.60 | 1,884 KB |
+
+| crates added to the build, itself included | crates |
+|---|---|
+| flowschema | 2 |
+| jsonschema 0.60 | 57 |
 
 Over a program that reads the JSON alone (312 KB), stripped, `opt-level = "z"`, fat LTO. regex-lite is measured alone, as a program that uses it pays for it.
 

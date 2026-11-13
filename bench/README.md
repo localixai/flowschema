@@ -15,7 +15,8 @@ The latest numbers: [`results/latest.md`](results/latest.md).
 | `micro` | Typical checks of an agent's output, each on fixed schemas and data: a review's verdict valid and not, a thousand rows, wide objects, a tree by `$ref`, a union of tool calls, `uniqueItems`, a long `enum`, each `format`, common patterns; the time to compile two schemas; the time to write every message of an invalid answer | `micro.json`, `micro.md` |
 | `suite` | The official [JSON-Schema-Test-Suite](https://github.com/json-schema-org/JSON-Schema-Test-Suite): every required test of each draft from 4 to 2020-12, the format tests and ECMA-262's regular expressions, the suite's remote documents given to both | `suite.json`, `suite.md` |
 | `corpus` | [MaskBench](https://github.com/guidance-ai/jsonschemabench) (guidance-ai): the schemas of real LLM tasks (function calling, GitHub's, Kubernetes', JSON Schema Store's), each with answers labelled valid or not | `corpus.json`, `corpus.md`, `corpus-disagreements.tsv`, `corpus-slower.tsv` |
-| `size.sh` | One small program built three times, with no validator, with flowschema and with jsonschema: what each adds | `size.json`, `size.md` |
+| `size.sh` | One small program built with no validator, with flowschema, with jsonschema and with regex-lite alone: what each adds to the binary, and the crates each adds to the build | `size.json`, `size.md` |
+| `charts.sh` | The README's chart, drawn from the results above as SVG (`charts`) and rasterized by headless Chrome | `charts/compare.svg`, `charts/compare.png` |
 
 ## How
 
@@ -31,7 +32,8 @@ The latest numbers: [`results/latest.md`](results/latest.md).
   whose schema uses a keyword flowschema does not check (`Schema::unchecked`) apart, rather than
   as passed. `corpus` judges every answer against its label and the two validators against each
   other, and lists every answer they judge apart.
-- **Size.** `size.sh` strips the three binaries and subtracts the one with no validator.
+- **Size.** `size.sh` strips the binaries and subtracts the one with no validator; the crates
+  added are those `cargo tree` lists beyond the build that only reads JSON.
 - **The corpora** are fetched by `fetch.sh` at the commits the results were taken at; `run.sh`
   fetches them when they are missing.
 

@@ -72,6 +72,10 @@ assert!(schema.unchecked().is_empty());
 - **Safe with a schema from anywhere.** Nothing is fetched, every pattern runs in time linear in
   its string, a `$ref` loop is cut, and there is no `unsafe` ([SECURITY.md](SECURITY.md)).
 
+<p align="center">
+  <a href="docs/comparison.md"><img alt="flowschema beside the jsonschema crate: the time of six typical checks of what a model wrote, compiling and checking MaskBench's real LLM schemas, wrong verdicts, the size added to a binary, the crates added and the allocations of a check" src="bench/results/charts/compare.png" width="878"></a>
+</p>
+
 Every figure, its method and where `jsonschema` suits better are in
 [the comparison](docs/comparison.md).
 

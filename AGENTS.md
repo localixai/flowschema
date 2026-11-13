@@ -16,7 +16,8 @@ and it binds an agent as it binds a person. This file says where things are and 
   tests in `x_tests.rs` beside it.
 - `tests/repo.rs`: the repository's own rules, checked on its files (F3, F4, F10, F12).
 - `bench/`: the benchmarks against the `jsonschema` crate, their budgets (`budgets.json`), and
-  the results every published figure comes from (`results/`). A crate of its own: `jsonschema`
+  the results every published figure comes from (`results/`), the README's chart among them
+  (`results/charts/compare.png`, drawn by `charts.sh`). A crate of its own: `jsonschema`
   and the corpora never reach the library's build. Its method: [bench/README.md](bench/README.md).
 - `docs/`: the documentation, one page per file.
 

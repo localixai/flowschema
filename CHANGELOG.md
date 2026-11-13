@@ -10,4 +10,4 @@
   given; `Schema::new`, `Schema::with_documents`, `matches`, `mismatches` and `unchecked`.
 - The benchmarks write their results to `bench/results/` and are held to `bench/budgets.json`
   (`cargo run --release --bin check`); `bench/size.sh` measures what the library adds to a
-  binary.
+  binary and to a build; `bench/charts.sh` draws the README's chart from the results.

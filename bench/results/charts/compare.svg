@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1272" height="812" viewBox="0 0 1272 812">
+<defs><style>
+text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif; fill: #1c1c1b; }
+.section { font-size: 17px; font-weight: 700; }
+.title { font-size: 15px; font-weight: 600; }
+.note { font-size: 12px; fill: #5f5f5b; }
+.label, .value { font-size: 12.5px; }
+.value { fill: #5f5f5b; font-variant-numeric: tabular-nums; }
+.ours { font-size: 12.5px; font-weight: 600; fill: #6e56cf; font-variant-numeric: tabular-nums; }
+</style></defs>
+<rect width="1272" height="812" rx="16" fill="#ffffff"/>
+<g transform="translate(36 36)">
+<text x="0" y="16" class="section">Typical checks</text>
+<text x="0" y="35" class="note">one check of what a model wrote, the median of 31 rounds · shorter is better</text>
+<line x1="0" y1="46" x2="1200" y2="46" stroke="#d6d6d3"/>
+<text x="0" y="76" class="title">A structured answer</text>
+<text x="0" y="95" class="note">a review's verdict, valid</text>
+<text x="82" y="129" text-anchor="end" class="ours">flowschema</text>
+<rect x="92" y="117" width="124.1" height="16" rx="3" fill="#6e56cf"/>
+<text x="224.08706280643682" y="129" class="ours">398 ns</text>
+<text x="82" y="155" text-anchor="end" class="label">jsonschema</text>
+<rect x="92" y="143" width="188.0" height="16" rx="3" fill="#d6d6d3"/>
+<text x="288" y="155" class="value">603 ns</text>
+<text x="414" y="76" class="title">The same, invalid</text>
+<text x="414" y="95" class="note">stops at the first failure</text>
+<text x="496" y="129" text-anchor="end" class="ours">flowschema</text>
+<rect x="506" y="117" width="91.6" height="16" rx="3" fill="#6e56cf"/>
+<text x="605.5560319017114" y="129" class="ours">53 ns</text>
+<text x="496" y="155" text-anchor="end" class="label">jsonschema</text>
+<rect x="506" y="143" width="188.0" height="16" rx="3" fill="#d6d6d3"/>
+<text x="702" y="155" class="value">108 ns</text>
+<text x="828" y="76" class="title">Tool calls</text>
+<text x="828" y="95" class="note">64 calls, a union of 8 tools</text>
+<text x="910" y="129" text-anchor="end" class="ours">flowschema</text>
+<rect x="920" y="117" width="146.5" height="16" rx="3" fill="#6e56cf"/>
+<text x="1074.5188135159203" y="129" class="ours">6.00 µs</text>
+<text x="910" y="155" text-anchor="end" class="label">jsonschema</text>
+<rect x="920" y="143" width="188.0" height="16" rx="3" fill="#d6d6d3"/>
+<text x="1116" y="155" class="value">7.70 µs</text>
+<text x="0" y="212" class="title">A table</text>
+<text x="0" y="231" class="note">1,000 rows an answer lists</text>
+<text x="82" y="265" text-anchor="end" class="ours">flowschema</text>
+<rect x="92" y="253" width="113.2" height="16" rx="3" fill="#6e56cf"/>
+<text x="213.1728397083403" y="265" class="ours">91.90 µs</text>
+<text x="82" y="291" text-anchor="end" class="label">jsonschema</text>
+<rect x="92" y="279" width="188.0" height="16" rx="3" fill="#d6d6d3"/>
+<text x="288" y="291" class="value">152.67 µs</text>
+<text x="414" y="212" class="title">Wide objects</text>
+<text x="414" y="231" class="note">500 objects of 20 fields each</text>
+<text x="496" y="265" text-anchor="end" class="ours">flowschema</text>
+<rect x="506" y="253" width="48.2" height="16" rx="3" fill="#6e56cf"/>
+<text x="562.22238278272" y="265" class="ours">96.56 µs</text>
+<text x="496" y="291" text-anchor="end" class="label">jsonschema</text>
+<rect x="506" y="279" width="188.0" height="16" rx="3" fill="#d6d6d3"/>
+<text x="702" y="291" class="value">376.46 µs</text>
+<text x="828" y="212" class="title">A recursive schema</text>
+<text x="828" y="231" class="note">a tree of 511 nodes by $ref</text>
+<text x="910" y="265" text-anchor="end" class="ours">flowschema</text>
+<rect x="920" y="253" width="119.6" height="16" rx="3" fill="#6e56cf"/>
+<text x="1047.551399234514" y="265" class="ours">16.76 µs</text>
+<text x="910" y="291" text-anchor="end" class="label">jsonschema</text>
+<rect x="920" y="279" width="188.0" height="16" rx="3" fill="#d6d6d3"/>
+<text x="1116" y="291" class="value">26.35 µs</text>
+<text x="0" y="342" class="section">Real LLM tasks</text>
+<text x="0" y="361" class="note">MaskBench: schemas of function calling, GitHub, Kubernetes, JSON Schema Store · less is better</text>
+<line x1="0" y1="372" x2="1200" y2="372" stroke="#d6d6d3"/>
+<text x="0" y="402" class="title">Compiling every schema</text>
+<text x="0" y="421" class="note">11,306 schemas, each compiled once</text>
+<text x="82" y="455" text-anchor="end" class="ours">flowschema</text>
+<rect x="92" y="443" width="92.4" height="16" rx="3" fill="#6e56cf"/>
+<text x="192.39625339533984" y="455" class="ours">520.8 ms</text>
+<text x="82" y="481" text-anchor="end" class="label">jsonschema</text>
+<rect x="92" y="469" width="188.0" height="16" rx="3" fill="#d6d6d3"/>
+<text x="288" y="481" class="value">1,059.7 ms</text>
+<text x="414" y="402" class="title">Checking every answer</text>
+<text x="414" y="421" class="note">the answers of the 9,779 schemas both check whole</text>
+<text x="496" y="455" text-anchor="end" class="ours">flowschema</text>
+<rect x="506" y="443" width="131.7" height="16" rx="3" fill="#6e56cf"/>
+<text x="645.6661186020831" y="455" class="ours">8.73 ms</text>
+<text x="496" y="481" text-anchor="end" class="label">jsonschema</text>
+<rect x="506" y="469" width="188.0" height="16" rx="3" fill="#d6d6d3"/>
+<text x="702" y="481" class="value">12.47 ms</text>
+<text x="828" y="402" class="title">Wrong verdicts</text>
+<text x="828" y="421" class="note">answers judged against their label, of 36,990</text>
+<text x="910" y="455" text-anchor="end" class="ours">flowschema</text>
+<rect x="920" y="443" width="56.4" height="16" rx="3" fill="#6e56cf"/>
+<text x="984.4" y="455" class="ours">6</text>
+<text x="910" y="481" text-anchor="end" class="label">jsonschema</text>
+<rect x="920" y="469" width="188.0" height="16" rx="3" fill="#d6d6d3"/>
+<text x="1116" y="481" class="value">20</text>
+<text x="0" y="532" class="section">Weight</text>
+<text x="0" y="551" class="note">what a program takes on · smaller is better</text>
+<line x1="0" y1="562" x2="1200" y2="562" stroke="#d6d6d3"/>
+<text x="0" y="592" class="title">Added to a binary</text>
+<text x="0" y="611" class="note">a release built for size, stripped</text>
+<text x="82" y="645" text-anchor="end" class="ours">flowschema</text>
+<rect x="92" y="633" width="29.2" height="16" rx="3" fill="#6e56cf"/>
+<text x="129.225358185195" y="645" class="ours">293 KB</text>
+<text x="82" y="671" text-anchor="end" class="label">jsonschema</text>
+<rect x="92" y="659" width="188.0" height="16" rx="3" fill="#d6d6d3"/>
+<text x="288" y="671" class="value">1,884 KB</text>
+<text x="414" y="592" class="title">Crates it adds</text>
+<text x="414" y="611" class="note">to a build that reads JSON, itself included</text>
+<text x="496" y="645" text-anchor="end" class="ours">flowschema</text>
+<rect x="506" y="633" width="6.6" height="16" rx="3" fill="#6e56cf"/>
+<text x="520.5964912280701" y="645" class="ours">2</text>
+<text x="496" y="671" text-anchor="end" class="label">jsonschema</text>
+<rect x="506" y="659" width="188.0" height="16" rx="3" fill="#d6d6d3"/>
+<text x="702" y="671" class="value">57</text>
+<text x="828" y="592" class="title">Allocations on a check</text>
+<text x="828" y="611" class="note">the recursive schema's tree, checked once</text>
+<text x="910" y="645" text-anchor="end" class="ours">flowschema</text>
+<text x="920" y="645" class="ours">0</text>
+<text x="910" y="671" text-anchor="end" class="label">jsonschema</text>
+<rect x="920" y="659" width="188.0" height="16" rx="3" fill="#d6d6d3"/>
+<text x="1116" y="671" class="value">7</text>
+<line x1="0" y1="696" x2="1200" y2="696" stroke="#d6d6d3"/>
+<text x="0" y="714" class="note">Each panel has its own scale; the number beside a bar is the measurement. Every figure comes from bench/results/.</text>
+<text x="0" y="732" class="note">Both built as a CLI ships them (opt-level z, fat LTO), jsonschema 0.60 with formats asserted as flowschema asserts them.</text>
+</g>
+</svg>

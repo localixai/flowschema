@@ -1,6 +1,6 @@
 # The latest run
 
-2026-11-13, flowschema cf8fb02 with changes not yet committed, on Apple M5 (macOS 26.6.2), rustc 1.100.0, against jsonschema 0.60.
+2026-11-13, flowschema 173072e with changes not yet committed, on Apple M5 (macOS 26.6.2), rustc 1.100.0, against jsonschema 0.60.
 Each check's time is the median of 31 rounds; allocations are counted exactly.
 
 ## Typical checks
@@ -72,5 +72,10 @@ The two agree on 99.93% of the answers (`corpus-disagreements.tsv`). 21 schemas 
 | of which its own code | 244 KB |
 | of which regex-lite | 49 KB |
 | jsonschema 0.60 | 1,884 KB |
+
+| crates added to the build, itself included | crates |
+|---|---|
+| flowschema | 2 |
+| jsonschema 0.60 | 57 |
 
 Over a program that reads the JSON alone (312 KB), stripped, `opt-level = "z"`, fat LTO. regex-lite is measured alone, as a program that uses it pays for it.
