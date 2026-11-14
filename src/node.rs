@@ -302,9 +302,6 @@ impl Rules {
 pub(crate) struct Arrays {
     pub(crate) prefix: Box<[Id]>,
     pub(crate) rest: Option<Id>,
-    /// Whether `rest` is a leaf the walk settles where it stands (`Leaf`), told here as a
-    /// property is told it (`compile/flatten.rs`).
-    pub(crate) rest_leaf: bool,
     pub(crate) min_items: Option<u64>,
     pub(crate) max_items: Option<u64>,
     pub(crate) unique: bool,
@@ -318,9 +315,6 @@ pub(crate) struct Property {
     pub(crate) name: Box<str>,
     pub(crate) id: Id,
     pub(crate) bit: u64,
-    /// Whether its node is a leaf the walk settles where it stands (`Leaf`): told here, where
-    /// the walk already reads, so a field that is none costs no call to ask.
-    pub(crate) leaf: bool,
     /// The types its node asks, where it is a node of types alone (every type for one that
     /// allows anything); none where it asks more. Most fields are settled by it, with no read
     /// of their node.

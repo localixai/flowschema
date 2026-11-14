@@ -34,7 +34,9 @@
   compiled, and a whole number not at all. Each node is given, as its schema is compiled, the
   function that walks its shape, and a quick walk calls it with no question asked of what the
   node is: checks are 10 to 20% shorter in instructions, and on MaskBench the schemas it runs
-  more instructions on than `jsonschema` are a third of what they were. A fraction beside whole bounds is compared as the
+  more instructions on than `jsonschema` are under a third of what they were. A pattern that
+  is one class over the whole text (`^[A-Za-z0-9_-]+$`) reads a text of ASCII in one tight
+  pass. A fraction beside whole bounds is compared as the
   float it is; a node no short way is kept for is told by its type first, then by what the
   value's kind asks alone, and an `allOf`, a `not` and an `if` go through the short ways too. An `enum`'s strings, a field's name and a
   tag's value are compared inline, with no call to `memcmp`.

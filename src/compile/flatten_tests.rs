@@ -4,13 +4,13 @@ use crate::Schema;
 use crate::compile::compile;
 use crate::node::{Node, STRING};
 
-/// What the property `name` of the root of `schema` was told: its node, leaf and types.
-fn told(schema: &Value, name: &str) -> Option<(usize, bool, u8)> {
+/// What the property `name` of the root of `schema` was told: its node and its types.
+fn told(schema: &Value, name: &str) -> Option<(usize, u8)> {
     let nodes = compile(schema, &[]).nodes;
     match nodes.first() {
         Some(Node::Rules(rules)) => (rules.object.as_ref()?.properties.iter())
             .find(|property| &*property.name == name)
-            .map(|property| (property.id, property.leaf, property.types)),
+            .map(|property| (property.id, property.types)),
         Some(Node::Any | Node::Never | Node::Types(..)) | None => None,
     }
 }
@@ -21,11 +21,11 @@ fn a_property_by_reference_is_named_where_it_lands() {
             "c": {"enum": ["x"]}, "maybe": {"anyOf": [{"type": "string"}, {"type": "null"}]}},
         "properties": {"text": {"$ref": "#/$defs/a"}, "kind": {"$ref": "#/$defs/c"},
             "note": {"$ref": "#/$defs/maybe"}}});
-    let (_, leaf, types) = told(&schema, "text").unwrap();
-    assert_eq!((leaf, types), (false, STRING));
-    assert_eq!(told(&schema, "kind").map(|(_, leaf, _)| leaf), Some(true));
+    assert_eq!(told(&schema, "text").map(|(_, types)| types), Some(STRING));
+    // A node that asks more than types is told none, and is walked by its own way.
+    assert_eq!(told(&schema, "kind").map(|(_, types)| types), Some(0));
     // A union of types, folded, is told as its types.
-    assert!(told(&schema, "note").is_some_and(|(_, _, types)| types & STRING != 0));
+    assert!(told(&schema, "note").is_some_and(|(_, types)| types & STRING != 0));
 }
 
 #[test]

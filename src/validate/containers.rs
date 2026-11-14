@@ -41,10 +41,9 @@ impl Walk<'_> {
                     self.fits(*id, item) || self.child(*id, item, &At::Index(at, index), r.part())
                 }
                 // Past the prefix an item is told by what `rest` was found to be: its types,
-                // a leaf settled where it stands, or a node to walk; nothing is asked twice.
+                // or a node walked by its own way.
                 (None, Some(id)) => {
                     typed.is_some_and(|types| self.has_type(types, item))
-                        || (arrays.rest_leaf && self.leaf_holds(id, item))
                         || self.said(id, item, &At::Index(at, index), r.part())
                 }
                 (None, None) => break,
@@ -162,8 +161,7 @@ impl Walk<'_> {
                 let id = property.id;
                 let ok = self.has_type(property.types, value)
                     || self.fits(id, value)
-                    || (property.leaf && self.leaf_holds(id, value))
-                    || self.child(id, value, &here, r.part());
+                    || self.said(id, value, &here, r.part());
                 if !r.took(ok) {
                     return false;
                 }

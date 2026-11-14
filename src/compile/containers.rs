@@ -26,7 +26,6 @@ impl<'j> Compiler<'j> {
         Some(Box::new(Arrays {
             prefix: self.many(prefix, base),
             rest: rest.map(|schema| self.node(schema, base)),
-            rest_leaf: false,
             min_items: count(k.min_items),
             max_items: count(k.max_items),
             unique: k.unique_items == Some(&Value::Bool(true)),
@@ -51,7 +50,6 @@ impl<'j> Compiler<'j> {
                 name: name.as_str().into(),
                 id: self.node(schema, base),
                 bit,
-                leaf: false,
                 types: 0,
             });
         }

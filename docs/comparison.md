@@ -21,43 +21,43 @@ allocations are counted exactly.
 
 | check | flowschema | jsonschema 0.60 | flowschema faster by |
 |---|---|---|---|
-| review verdict, valid | 102 ns (0 alloc) | 159 ns (0 alloc) | 1.56x |
-| review verdict, invalid | 17 ns (0 alloc) | 31 ns (0 alloc) | 1.87x |
-| 1,000 rows | 23.66 µs (0 alloc) | 46.62 µs (0 alloc) | 1.97x |
-| 500 objects × 20 fields | 24.30 µs (0 alloc) | 168.94 µs (0 alloc) | 6.95x |
-| tree of 511 nodes by `$ref` | 4.56 µs (0 alloc) | 10.42 µs (7 alloc) | 2.29x |
-| 64 tool calls, `oneOf` of 8 | 1.57 µs (0 alloc) | 2.65 µs (0 alloc) | 1.68x |
-| `uniqueItems`, 1,000 strings | 2.64 µs (1 alloc) | 4.54 µs (1 alloc) | 1.72x |
-| `enum` of 1,000, the last | 5 ns (0 alloc) | 6 ns (0 alloc) | 1.31x |
-| `format: date-time` | 6 ns (0 alloc) | 10 ns (0 alloc) | 1.66x |
-| `format: email` | 19 ns (0 alloc) | 78 ns (1 alloc) | 4.05x |
+| review verdict, valid | 110 ns (0 alloc) | 165 ns (0 alloc) | 1.50x |
+| review verdict, invalid | 16 ns (0 alloc) | 36 ns (0 alloc) | 2.26x |
+| 1,000 rows | 24.32 µs (0 alloc) | 43.92 µs (0 alloc) | 1.81x |
+| 500 objects × 20 fields | 20.96 µs (0 alloc) | 169.77 µs (0 alloc) | 8.10x |
+| tree of 511 nodes by `$ref` | 4.69 µs (0 alloc) | 10.04 µs (7 alloc) | 2.14x |
+| 64 tool calls, `oneOf` of 8 | 1.66 µs (0 alloc) | 2.70 µs (0 alloc) | 1.63x |
+| `uniqueItems`, 1,000 strings | 2.63 µs (1 alloc) | 4.55 µs (1 alloc) | 1.73x |
+| `enum` of 1,000, the last | 5 ns (0 alloc) | 6 ns (0 alloc) | 1.32x |
+| `format: date-time` | 6 ns (0 alloc) | 10 ns (0 alloc) | 1.62x |
+| `format: email` | 20 ns (0 alloc) | 79 ns (1 alloc) | 3.91x |
 | `format: uuid` | 3 ns (0 alloc) | 4 ns (0 alloc) | 1.33x |
-| `format: ipv4` | 5 ns (0 alloc) | 7 ns (0 alloc) | 1.42x |
-| `format: uri` | 13 ns (0 alloc) | 20 ns (0 alloc) | 1.54x |
-| `format: regex`, `^[a-z]+\d$` | 52 ns (0 alloc) | 59 ns (3 alloc) | 1.13x |
-| `format: regex`, `^\p{L}+$` | 46 ns (0 alloc) | 57 ns (3 alloc) | 1.24x |
-| `format: regex`, `^\P{ASCII}+$` | 51 ns (0 alloc) | 63 ns (3 alloc) | 1.23x |
-| `format: regex`, `[\P{Letter}]` | 44 ns (0 alloc) | 60 ns (3 alloc) | 1.36x |
-| `format: regex`, `(?=a)b` | 51 ns (0 alloc) | 75 ns (4 alloc) | 1.46x |
-| `format: regex`, `(a)\1` | 54 ns (0 alloc) | 79 ns (4 alloc) | 1.45x |
-| `format: regex`, `(?<n>a)\k<n>` | 70 ns (0 alloc) | 125 ns (7 alloc) | 1.79x |
-| `pattern: ^[A-Z]{3}$` | 6 ns (0 alloc) | 15 ns (0 alloc) | 2.47x |
-| `pattern: ^\d{4}-\d{2}-\d{2}$` | 7 ns (0 alloc) | 16 ns (0 alloc) | 2.12x |
-| `pattern: ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$` | 8 ns (0 alloc) | 16 ns (0 alloc) | 1.96x |
-| `pattern: ^(small\|medium\|large)$` | 4 ns (0 alloc) | 5 ns (0 alloc) | 1.20x |
+| `format: ipv4` | 5 ns (0 alloc) | 7 ns (0 alloc) | 1.47x |
+| `format: uri` | 13 ns (0 alloc) | 20 ns (0 alloc) | 1.52x |
+| `format: regex`, `^[a-z]+\d$` | 52 ns (0 alloc) | 60 ns (3 alloc) | 1.16x |
+| `format: regex`, `^\p{L}+$` | 47 ns (0 alloc) | 53 ns (3 alloc) | 1.14x |
+| `format: regex`, `^\P{ASCII}+$` | 52 ns (0 alloc) | 62 ns (3 alloc) | 1.21x |
+| `format: regex`, `[\P{Letter}]` | 45 ns (0 alloc) | 75 ns (3 alloc) | 1.68x |
+| `format: regex`, `(?=a)b` | 51 ns (0 alloc) | 81 ns (4 alloc) | 1.57x |
+| `format: regex`, `(a)\1` | 56 ns (0 alloc) | 82 ns (4 alloc) | 1.47x |
+| `format: regex`, `(?<n>a)\k<n>` | 71 ns (0 alloc) | 127 ns (7 alloc) | 1.78x |
+| `pattern: ^[A-Z]{3}$` | 5 ns (0 alloc) | 15 ns (0 alloc) | 2.77x |
+| `pattern: ^\d{4}-\d{2}-\d{2}$` | 10 ns (0 alloc) | 17 ns (0 alloc) | 1.75x |
+| `pattern: ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$` | 10 ns (0 alloc) | 19 ns (0 alloc) | 1.90x |
+| `pattern: ^(small\|medium\|large)$` | 5 ns (0 alloc) | 6 ns (0 alloc) | 1.27x |
 
 | compiled once | flowschema | jsonschema 0.60 | flowschema faster by |
 |---|---|---|---|
-| review verdict | 1.06 µs | 6.10 µs | 5.73x |
-| tool calls | 5.68 µs | 25.05 µs | 4.41x |
+| review verdict | 1.17 µs | 6.51 µs | 5.57x |
+| tool calls | 6.20 µs | 27.22 µs | 4.39x |
 
 | one request | flowschema | jsonschema 0.60 | flowschema faster by |
 |---|---|---|---|
-| review verdict: compiled, one answer checked | 1.20 µs | 5.95 µs | 4.97x |
-| one tool call: compiled, one answer checked | 471 ns | 3.66 µs | 7.78x |
-| nested models: compiled, one answer checked | 2.37 µs | 9.79 µs | 4.14x |
+| review verdict: compiled, one answer checked | 1.24 µs | 6.43 µs | 5.18x |
+| one tool call: compiled, one answer checked | 518 ns | 3.95 µs | 7.62x |
+| nested models: compiled, one answer checked | 2.50 µs | 10.68 µs | 4.27x |
 
-Every message of an invalid verdict: flowschema 572 ns, jsonschema 696 ns (1.22x).
+Every message of an invalid verdict: flowschema 614 ns, jsonschema 831 ns (1.35x).
 
 <!-- /bench:micro -->
 
@@ -69,10 +69,10 @@ Every message of an invalid verdict: flowschema 572 ns, jsonschema 696 ns (1.22x
 |---|---|---|
 | schemas compiled | 11,306 of 11,306 (0 panics) | 11,298 (8 refused) |
 | answers judged as labelled | 36,984 of 36,990 (99.98%) | 36,970 (99.95%) |
-| compiling every schema | 125.9 ms | 460.7 ms (flowschema 3.66x faster) |
-| checking every answer of the 9,779 schemas both check whole | 2.68 ms | 4.24 ms (flowschema 1.59x faster) |
+| compiling every schema | 125.0 ms | 461.4 ms (flowschema 3.69x faster) |
+| checking every answer of the 9,779 schemas both check whole | 2.59 ms | 4.23 ms (flowschema 1.63x faster) |
 
-The two agree on 99.93% of the answers (`corpus-disagreements.tsv`). 21 schemas (0.19%) ask something not checked here: `pattern` (19), `$ref outside the schema` (1), `format` (1). flowschema is slower by over 5% on 381 schemas (`corpus-slower.tsv`).
+The two agree on 99.93% of the answers (`corpus-disagreements.tsv`). 21 schemas (0.19%) ask something not checked here: `pattern` (19), `$ref outside the schema` (1), `format` (1). flowschema is slower by over 5% on 306 schemas (`corpus-slower.tsv`).
 
 <!-- /bench:corpus -->
 
@@ -86,10 +86,10 @@ is not:
 
 | answers of MaskBench | answers | instructions, jsonschema's over flowschema's | flowschema runs over 5% fewer on | over 5% more on |
 |---|---|---|---|---|
-| that match | 13,937 | 1.48x | 12,380 (88.8%) | 772 (5.5%) |
-| that do not | 22,979 | 1.46x | 19,401 (84.4%) | 1,960 (8.5%) |
+| that match | 13,937 | 1.50x | 12,517 (89.8%) | 703 (5.0%) |
+| that do not | 22,979 | 1.50x | 19,830 (86.3%) | 1,683 (7.3%) |
 
-Of the 9,779 schemas both check whole that have answers, flowschema runs over 5% fewer instructions on the answers of 8,735 (89.3%) and over 5% more on those of 472 (4.8%). An answer is one `matches` and one `is_valid`, counted in the processor's instructions: the same on every run of one build, and not a time.
+Of the 9,779 schemas both check whole that have answers, flowschema runs over 5% fewer instructions on the answers of 8,819 (90.2%) and over 5% more on those of 430 (4.4%). An answer is one `matches` and one `is_valid`, counted in the processor's instructions: the same on every run of one build, and not a time.
 
 <!-- /bench:answers -->
 

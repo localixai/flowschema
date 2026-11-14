@@ -1,11 +1,10 @@
 //! Children named where they land, once every node is built: a field's or an item's schema that
 //! is a `$ref` and nothing else (`Rules::alias`) is replaced, in the node that names it, by the
 //! node the reference lands on, so the walk steps from a value straight to its schema, with no
-//! node in between; and each property, and an array's items, are told what their node asks,
-//! where the walk already reads (`Property::types`, `Property::leaf`, `Arrays::rest_leaf`), now
-//! that unions of types are folded.
+//! node in between; and each property is told the types its node asks, where they are all it
+//! asks (`Property::types`), now that unions of types are folded.
 
-use crate::node::{ALL, Extra, Id, Leaf, Node, Rules};
+use crate::node::{ALL, Extra, Id, Node, Rules};
 
 /// How many references in a row are followed: a longer chain, or one that turns on itself, is
 /// left as it is, for the walk to count.
@@ -24,22 +23,14 @@ pub(crate) fn settle(nodes: &mut [Node], referred: bool) {
         }
     }
     for at in 0..nodes.len() {
-        if let Some(rest) = rest(nodes, at) {
-            let (leaf, _) = told(nodes, rest);
-            if let Some(Node::Rules(rules)) = nodes.get_mut(at)
-                && let Some(arrays) = &mut rules.array
-            {
-                arrays.rest_leaf = leaf;
-            }
-        }
         let mut place = 0;
         while let Some(child) = property(nodes, at, place) {
-            let (leaf, types) = told(nodes, child);
+            let types = told(nodes, child);
             if let Some(Node::Rules(rules)) = nodes.get_mut(at)
                 && let Some(objects) = &mut rules.object
                 && let Some(property) = objects.properties.get_mut(place)
             {
-                (property.leaf, property.types) = (leaf, types);
+                property.types = types;
             }
             place += 1;
         }
@@ -86,14 +77,6 @@ fn children(rules: &mut Rules, land: &impl Fn(&mut Id)) {
     }
 }
 
-/// The node every item past the prefix of node `at` is held to.
-fn rest(nodes: &[Node], at: Id) -> Option<Id> {
-    match nodes.get(at)? {
-        Node::Rules(rules) => rules.array.as_ref()?.rest,
-        Node::Any | Node::Never | Node::Types(..) => None,
-    }
-}
-
 /// The node of the property at `place` of node `at`.
 fn property(nodes: &[Node], at: Id, place: usize) -> Option<Id> {
     match nodes.get(at)? {
@@ -102,14 +85,14 @@ fn property(nodes: &[Node], at: Id, place: usize) -> Option<Id> {
     }
 }
 
-/// What node `id` asks, as a property is told it: whether it is a leaf the walk settles, and
-/// its types where they are all it asks.
-fn told(nodes: &[Node], id: Id) -> (bool, u8) {
+/// The types node `id` asks, where they are all it asks (every type for one that takes
+/// anything): what a property is told of its node.
+fn told(nodes: &[Node], id: Id) -> u8 {
     match nodes.get(id) {
-        Some(Node::Rules(rules)) => (rules.leaf != Leaf::Walked, rules.only_types.unwrap_or(0)),
-        Some(Node::Types(types, _)) => (false, *types),
-        Some(Node::Any) => (false, ALL),
-        Some(Node::Never) | None => (false, 0),
+        Some(Node::Rules(rules)) => rules.only_types.unwrap_or(0),
+        Some(Node::Types(types, _)) => *types,
+        Some(Node::Any) => ALL,
+        Some(Node::Never) | None => 0,
     }
 }
 

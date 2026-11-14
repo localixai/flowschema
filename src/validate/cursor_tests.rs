@@ -7,7 +7,6 @@ fn named(names: &[&str]) -> Vec<Property> {
             name: (*name).into(),
             id,
             bit: 1 << id,
-            leaf: false,
             types: 0,
         })
         .collect()

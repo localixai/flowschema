@@ -36,8 +36,7 @@ impl Walk<'_> {
             met |= property.bit;
             let ok = self.has_type(property.types, value)
                 || self.fits(id, value)
-                || (property.leaf && self.leaf_holds(id, value))
-                || self.child(id, value, &At::Key(at, name), r.part());
+                || self.said(id, value, &At::Key(at, name), r.part());
             if !r.took(ok) {
                 return false;
             }

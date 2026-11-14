@@ -6,8 +6,8 @@ use serde_json::Value;
 use super::Walk;
 use crate::compile::tags::Tag;
 use crate::node::{
-    ALL, ARRAY, BOOLEAN, HAS_KIND, HAS_STRING, Id, Items, Leaf, NULL, NUMBER, Node, OBJECT,
-    PlainArray, Rules, STRING, kind_of,
+    ALL, ARRAY, BOOLEAN, HAS_KIND, HAS_STRING, Id, Items, NULL, NUMBER, Node, OBJECT, PlainArray,
+    Rules, STRING, kind_of,
 };
 use crate::report::{At, Report, said};
 use crate::text::same_text;
@@ -111,36 +111,6 @@ impl Walk<'_> {
         match F {
             true => self.node(id, value, at, r, 0),
             false => self.holds(id, value, 0),
-        }
-    }
-
-    /// Whether node `id` is a leaf that surely holds `value` (`Leaf`), asked of a field's value
-    /// where `fits` could not say: out of the walk's way, so its every call does not grow by it.
-    pub(crate) fn leaf_holds(&self, id: Id, value: &Value) -> bool {
-        self.leaf(id, value) == Some(true)
-    }
-
-    /// What the leaf node `id` says of `value`: that it holds it, that it surely does not (a
-    /// quick walk then fails with nothing walked), or nothing, where the walk must decide (a
-    /// node that is no leaf, a fraction, a string to count by characters).
-    #[inline(never)]
-    pub(crate) fn leaf(&self, id: Id, value: &Value) -> Option<bool> {
-        match self.nodes.get(id) {
-            Some(Node::Rules(rules)) => self.settles(rules, value),
-            Some(Node::Any | Node::Never | Node::Types(..)) | None => None,
-        }
-    }
-
-    /// What the leaf `rules` say of `value` (`leaf`): each kind of leaf by a function of its
-    /// own, which the quick walk calls directly (`validate/lanes.rs`).
-    #[inline]
-    pub(super) fn settles(&self, rules: &Rules, value: &Value) -> Option<bool> {
-        match rules.leaf {
-            Leaf::Walked => None,
-            Leaf::Strings => Some(strings(rules, value)),
-            Leaf::Const => constant(rules, value),
-            Leaf::Range => Self::range(rules, value),
-            Leaf::Text => self.string(rules, value),
         }
     }
 

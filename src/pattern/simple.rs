@@ -141,9 +141,20 @@ impl Run {
             return false;
         }
         let max = self.max.filter(|_| whole).unwrap_or(u32::MAX);
+        let bytes = text.as_bytes();
+        // The whole of a text of ASCII alone, as most are: each byte is a character, asked of
+        // the class's bits in one tight pass, and the text's length is its count.
+        if whole {
+            let strays = |byte: &u8| *byte >= 0x80 || self.ascii >> *byte & 1 == 0;
+            match bytes.iter().position(strays).and_then(|at| bytes.get(at)) {
+                None => return u32::try_from(bytes.len()).is_ok_and(|len| len <= max),
+                Some(byte) if *byte < 0x80 => return false,
+                // A character past ASCII: counted as the general pass counts them.
+                Some(_) => {}
+            }
+        }
         // The count only needs to reach the bounds: one held at u32::MAX is as good.
         let mut count: u32 = 0;
-        let bytes = text.as_bytes();
         let mut at = 0;
         while let Some(&byte) = bytes.get(at) {
             let held = if byte < 0x80 {
