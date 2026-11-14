@@ -121,6 +121,45 @@ impl Walk<'_> {
     }
 }
 
+impl Walk<'_> {
+    /// The quick walk of an object that names far more properties than the value has fields:
+    /// each field is found by hash (`Objects::lookup`), with nothing said and no property
+    /// gone past. What `in_order` answers, for a value it would walk every property for.
+    pub(super) fn by_hash(
+        &self,
+        objects: &Objects,
+        lookup: &crate::hash::Names,
+        fields: &Map<String, Value>,
+    ) -> bool {
+        let properties = &*objects.properties;
+        let required = objects.required_bits.unwrap_or(0);
+        let mut wanted = (objects.required.iter()).map(|it| objects.required_name(it));
+        if objects.required_bits.is_none() && !wanted.all(|name| field(fields, name).is_some()) {
+            return false;
+        }
+        let mut met = 0;
+        for (name, value) in fields {
+            let found = (lookup.find(properties, name)).and_then(|place| properties.get(place));
+            let ok = match (found, &objects.extra) {
+                (Some(property), _) => {
+                    met |= property.bit;
+                    match property.types {
+                        0 => self.holds(property.id, value, 0),
+                        types => self.has_type(types, value),
+                    }
+                }
+                (None, Extra::Absent | Extra::Allowed) => true,
+                (None, Extra::Refused) => false,
+                (None, Extra::Checked(id)) => self.holds(*id, value, 0),
+            };
+            if !ok {
+                return false;
+            }
+        }
+        met & required == required
+    }
+}
+
 /// The bits of the properties among `fields`, both in the order of their names: what a union
 /// of required names beside an object is told by (`Objects::branches`), with nothing looked up.
 pub(super) fn seen(objects: &Objects, fields: &Map<String, Value>) -> u64 {

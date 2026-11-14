@@ -178,6 +178,8 @@ fn counted_objects_are_held_as_the_whole_walk_holds_them() {
         json!({"type": "object", "maxProperties": 0}),
         json!({"type": "object", "minProperties": 1, "additionalProperties": {"type": "string"}}),
         json!({"maxProperties": 2, "additionalProperties": {"enum": ["x", "y"]}, "required": ["b"]}),
+        json!({"minProperties": 2, "properties": {"a": {"type": "string"}, "c": {"const": "x"}}, "additionalProperties": false}),
+        json!({"type": "object", "maxProperties": 2, "properties": {"a": {"type": "string"}}, "required": ["a"]}),
     ];
     let values = [
         json!({}),
@@ -230,6 +232,47 @@ fn unions_skip_the_branches_that_cannot_hold_a_kind_and_say_the_same() {
         json!([1]),
         json!({}),
         json!({"a": 1}),
+    ];
+    for schema in &schemas {
+        let compiled = Schema::new(schema);
+        for value in &values {
+            let said = compiled.mismatches(value).is_empty();
+            assert_eq!(compiled.matches(value), said, "{schema} with {value}");
+        }
+    }
+}
+
+/// An object that names far more properties than a value has fields finds each field by hash,
+/// and says what the whole walk says: of fields it names, of others, of required ones missing.
+#[test]
+fn an_object_of_many_properties_finds_few_fields_by_hash() {
+    let mut properties = serde_json::Map::new();
+    for n in 0..40 {
+        let kind = if n % 2 == 0 {
+            json!({"type": "string"})
+        } else {
+            json!({"enum": ["x", 1]})
+        };
+        properties.insert(format!("field_{n}"), kind);
+    }
+    let schemas = [
+        json!({"type": "object", "properties": properties}),
+        json!({"properties": properties, "additionalProperties": false, "required": ["field_2"]}),
+        json!({"properties": properties, "additionalProperties": {"type": "integer"}, "required": ["field_3", "other"]}),
+        json!({"properties": properties, "minProperties": 2, "required": ["field_2", "field_3"]}),
+    ];
+    let values = [
+        json!({}),
+        json!({"field_2": "a"}),
+        json!({"field_2": 1}),
+        json!({"field_3": "x", "field_2": "b"}),
+        json!({"field_3": 2}),
+        json!({"other": 1, "field_3": 1}),
+        json!({"other": "a", "field_3": "x"}),
+        json!({"field_2": "a", "zzz": 1}),
+        json!({"field_2": "a", "zzz": "b"}),
+        json!([]),
+        json!(1),
     ];
     for schema in &schemas {
         let compiled = Schema::new(schema);

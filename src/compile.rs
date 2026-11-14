@@ -67,6 +67,14 @@ pub(crate) fn compile(root: &Value, documents: &[(String, Value)]) -> Compiled {
     }
     if compiler.unions {
         unions::settle(&mut compiler.nodes);
+        // A union now told by its list goes by the way for that.
+        for node in &mut compiler.nodes {
+            if let Node::Rules(rules) = node
+                && rules.listed.is_some()
+            {
+                rules.way = Quick(way(rules));
+            }
+        }
     }
     Compiled {
         nodes: compiler.nodes,

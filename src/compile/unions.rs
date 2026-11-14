@@ -8,7 +8,7 @@
 use serde_json::Value;
 
 use crate::hash::{Listed, Table};
-use crate::node::{ALL, INTEGER, Id, Lane, Leaf, NUMBER, Node, OBJECT, kind_of};
+use crate::node::{ALL, INTEGER, Id, Lane, Leaf, NUMBER, Node, OBJECT, TYPES_ALONE, kind_of};
 use crate::validate::Walk;
 
 /// The most strings a union's branches may name between them for its list to be made.
@@ -85,12 +85,12 @@ fn kinds(nodes: &[Node], id: Id) -> u8 {
     for _ in 0..DEPTH {
         let rules = match nodes.get(id) {
             Some(Node::Rules(rules)) => rules,
-            Some(Node::Types(types, _)) => return wide(*types),
+            Some(Node::Types(types, _)) => return wide(*types) | TYPES_ALONE,
             Some(Node::Never) => return 0,
             Some(Node::Any) | None => return ALL,
         };
         match (rules.only_types, rules.alias) {
-            (Some(types), _) => return wide(types),
+            (Some(types), _) => return wide(types) | TYPES_ALONE,
             (None, Some(target)) => id = target,
             (None, None) => {
                 let listed = matches!(rules.options, Some(Value::Array(_)));

@@ -12,6 +12,7 @@ mod partial;
 mod scalars;
 mod shortcut;
 mod unevaluated;
+mod unions;
 
 use serde_json::Value;
 

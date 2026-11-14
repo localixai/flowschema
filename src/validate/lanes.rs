@@ -5,16 +5,16 @@
 
 use serde_json::Value;
 
-use super::objects::seen;
 use super::scalars::bounds;
 use super::shortcut;
-use super::{DEPTH, Walk};
+use super::{DEPTH, Walk, unions};
 use crate::node::{
-    ARRAY, BOOLEAN, Extra, HAS_ARRAY, HAS_COMBINED, HAS_NUMBER, HAS_OBJECT, HAS_STRING, INTEGER,
-    Id, Lane, Leaf, NULL, NUMBER, Node, OBJECT, Objects, Rules, STRING,
+    ARRAY, Extra, HAS_ARRAY, HAS_COMBINED, HAS_NUMBER, HAS_OBJECT, HAS_STRING, Id, Lane, Leaf,
+    Node, OBJECT, Objects, Rules,
 };
 use crate::number::{among, json_eq};
 use crate::report::{At, Report};
+use crate::text::field;
 
 impl Walk<'_> {
     /// Whether `value` matches node `id`, saying nothing: what `node` answers a quick walk, by
@@ -89,16 +89,16 @@ pub(crate) fn way(rules: &Rules) -> Way {
         (None, None, None, Leaf::Const) => constant,
         (None, None, None, Leaf::Range) => range,
         (None, None, None, Leaf::Text) => string,
-        (None, None, None, Leaf::Walked) => by_lane(rules.lane),
+        (None, None, None, Leaf::Walked) => by_lane(rules),
     }
 }
 
 /// The way of each lane.
-fn by_lane(lane: Lane) -> Way {
-    match lane {
+fn by_lane(rules: &Rules) -> Way {
+    match rules.lane {
         Lane::Object => object,
         Lane::Array => array,
-        Lane::Union => union,
+        Lane::Union => unions::way(rules),
         Lane::Not => not,
         Lane::All => all,
         Lane::Number => number,
@@ -109,7 +109,7 @@ fn by_lane(lane: Lane) -> Way {
         Lane::Required => required,
         Lane::Patterned => patterned,
         Lane::Map => map,
-        Lane::Both => both,
+        Lane::Both => unions::both,
         Lane::Walk => rest,
     }
 }
@@ -135,16 +135,15 @@ fn strings(_: &Walk<'_>, _: Id, rules: &Rules, value: &Value, _: usize) -> bool 
 }
 
 fn constant(walk: &Walk<'_>, id: Id, rules: &Rules, value: &Value, refs: usize) -> bool {
-    shortcut::constant(rules, value)
-        .unwrap_or_else(|| by_lane(rules.lane)(walk, id, rules, value, refs))
+    shortcut::constant(rules, value).unwrap_or_else(|| by_lane(rules)(walk, id, rules, value, refs))
 }
 
 fn range(walk: &Walk<'_>, id: Id, rules: &Rules, value: &Value, refs: usize) -> bool {
-    Walk::range(rules, value).unwrap_or_else(|| by_lane(rules.lane)(walk, id, rules, value, refs))
+    Walk::range(rules, value).unwrap_or_else(|| by_lane(rules)(walk, id, rules, value, refs))
 }
 
 fn string(walk: &Walk<'_>, id: Id, rules: &Rules, value: &Value, refs: usize) -> bool {
-    (walk.string(rules, value)).unwrap_or_else(|| by_lane(rules.lane)(walk, id, rules, value, refs))
+    (walk.string(rules, value)).unwrap_or_else(|| by_lane(rules)(walk, id, rules, value, refs))
 }
 
 fn not(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, refs: usize) -> bool {
@@ -158,39 +157,25 @@ fn all(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, refs: usize) -> boo
 /// A number held to its type and its own keywords; a value of another kind, to the type alone.
 fn number(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, _: usize) -> bool {
     rules.types.is_none_or(|types| walk.has_type(types, value))
-        && match value {
-            Value::Number(n) => bounds(rules, n, &At::Root, &mut Report::quiet()),
-            Value::Null
-            | Value::Bool(_)
-            | Value::String(_)
-            | Value::Array(_)
-            | Value::Object(_) => true,
-        }
+        && (value.as_number()).is_none_or(|n| bounds(rules, n, &At::Root, &mut Report::quiet()))
 }
 
 /// A string held to its type and its own keywords; a value of another kind, to the type alone.
 fn text(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, _: usize) -> bool {
-    rules.types.is_none_or(|types| walk.has_type(types, value))
-        && match value {
-            Value::String(text) => walk.text(rules, text, &At::Root, &mut Report::quiet()),
-            Value::Null
-            | Value::Bool(_)
-            | Value::Number(_)
-            | Value::Array(_)
-            | Value::Object(_) => true,
-        }
+    let held = |text: &str| walk.text(rules, text, &At::Root, &mut Report::quiet());
+    rules.types.is_none_or(|types| walk.has_type(types, value)) && value.as_str().is_none_or(held)
 }
 
 /// An object held to its type and its own keywords: in the order of its fields where it can
 /// be (`Walk::in_order`), by `Walk::fields` where not; a value of another kind, to the type.
-fn object(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, _: usize) -> bool {
+pub(super) fn object(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, _: usize) -> bool {
     match (value, &rules.object) {
         (Value::Object(fields), Some(objects)) => {
-            let ordered = walk.sorted && objects.simple && in_order(objects, fields.len());
+            let ordered = walk.sorted && objects.counted && in_order(objects, fields.len());
             rules.types.is_none_or(|types| types & OBJECT != 0)
                 && match ordered {
-                    true => walk.in_order(objects, fields),
-                    false => walk.fields(objects, value, fields, &At::Root, &mut Report::quiet()),
+                    true => counted(objects, fields.len()) && walk.in_order(objects, fields),
+                    false => unordered(walk, objects, value),
                 }
         }
         (_, _) => rules.types.is_none_or(|types| walk.has_type(types, value)),
@@ -206,6 +191,23 @@ fn counted(objects: &Objects, given: usize) -> bool {
             && objects.max_fields.is_none_or(|most| given <= most))
 }
 
+/// An object not read in the order of its fields, a call of its own so that `object` stays
+/// short: by hash where it names far more properties than the value has fields, else by
+/// `Walk::fields`.
+#[inline(never)]
+fn unordered(walk: &Walk<'_>, objects: &Objects, value: &Value) -> bool {
+    let Value::Object(fields) = value else {
+        return true;
+    };
+    let given = fields.len();
+    match &objects.lookup {
+        Some(lookup) if objects.counted && objects.properties.len() > given.saturating_mul(4) => {
+            counted(objects, given) && walk.by_hash(objects, lookup, fields)
+        }
+        Some(_) | None => walk.fields(objects, value, fields, &At::Root, &mut Report::quiet()),
+    }
+}
+
 /// An object held to the names it requires, each looked up, and to how many fields it has; no
 /// field of it is read.
 fn required(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, _: usize) -> bool {
@@ -214,7 +216,7 @@ fn required(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, _: usize) -> b
             rules.types.is_none_or(|types| types & OBJECT != 0)
                 && counted(objects, fields.len())
                 && (objects.required.iter())
-                    .all(|it| fields.contains_key(objects.required_name(it)))
+                    .all(|it| field(fields, objects.required_name(it)).is_some())
         }
         (_, _) => rules.types.is_none_or(|types| walk.has_type(types, value)),
     }
@@ -232,34 +234,11 @@ fn map(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, _: usize) -> bool {
             rules.types.is_none_or(|types| types & OBJECT != 0)
                 && counted(objects, fields.len())
                 && (objects.required.iter())
-                    .all(|it| fields.contains_key(objects.required_name(it)))
+                    .all(|it| field(fields, objects.required_name(it)).is_some())
                 && fields.values().all(held)
         }
         (_, _) => rules.types.is_none_or(|types| walk.has_type(types, value)),
     }
-}
-
-/// An object as `object` reads it (or a type alone), and the one union beside it: where its
-/// branches only require names of the object's properties (`Objects::branches`), each is told
-/// by the properties the walk met, with nothing looked up.
-fn both(walk: &Walk<'_>, id: Id, rules: &Rules, value: &Value, refs: usize) -> bool {
-    if let (Value::Object(fields), Some(objects)) = (value, &rules.object)
-        && !objects.branches.is_empty()
-        && walk.sorted
-    {
-        // The object first, as a union is tried after it: one that does not hold is not read
-        // twice.
-        if !object(walk, id, rules, value, refs) {
-            return false;
-        }
-        let met = seen(objects, fields);
-        let held = (objects.branches.iter()).filter(|mask| met & **mask == **mask);
-        return match rules.any_of.is_empty() {
-            true => held.count() == 1,
-            false => held.count() > 0,
-        };
-    }
-    object(walk, id, rules, value, refs) && union(walk, id, rules, value, refs)
 }
 
 /// An object held to patterns for its names (`Walk::patterned`).
@@ -308,40 +287,6 @@ fn kind(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, _: usize) -> bool 
             (Some(_) | None, _) => true,
         }
         && (rules.constant.as_ref()).is_none_or(|one| json_eq(one, value))
-}
-
-fn union(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, refs: usize) -> bool {
-    let tagged = rules.any_tag.is_some() || rules.one_tag.is_some();
-    // A branch that cannot hold a value of this kind (`Rules::kinds`) is not walked.
-    let kind = match value {
-        Value::Null => NULL,
-        Value::Bool(_) => BOOLEAN,
-        Value::Number(_) => NUMBER | INTEGER,
-        Value::String(_) => STRING,
-        Value::Array(_) => ARRAY,
-        Value::Object(_) => OBJECT,
-    };
-    let held = |(place, id): (usize, &Id)| {
-        (rules.kinds.get(place)).is_none_or(|kinds| kinds & kind != 0)
-            && walk.holds(*id, value, refs)
-    };
-    match (&rules.listed, rules.any_of.is_empty(), tagged) {
-        // A union of names holds the strings of its list and nothing else.
-        (Some(listed), _, _) => value.as_str().is_some_and(|text| listed.holds(text)),
-        // With no tag to pick a branch by, each is tried in turn: the first that holds
-        // settles an `anyOf`, a second one a `oneOf`.
-        (None, false, false) => rules.any_of.iter().enumerate().any(held),
-        (None, true, false) => {
-            let mut held = rules.one_of.iter().enumerate().filter(|it| held(*it));
-            held.next().is_some() && held.next().is_none()
-        }
-        (None, false, true) => {
-            walk.matched(&rules.any_of, rules.any_tag.as_deref(), value, refs, 1) > 0
-        }
-        (None, true, true) => {
-            walk.matched(&rules.one_of, rules.one_tag.as_deref(), value, refs, 2) == 1
-        }
-    }
 }
 
 /// A node no lane takes: by `direct`, or by `node` where a `$ref` stands beside keywords or

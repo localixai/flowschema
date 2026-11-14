@@ -73,12 +73,7 @@ pub(super) fn lane(rules: &Rules) -> Lane {
         !objects.patterns.is_empty() && objects.names.is_none() && !objects.closing
     });
     // Held to nothing after its fields but how many they are: `simple`, or that beside.
-    let counted = (rules.object.as_ref()).is_some_and(|objects| {
-        objects.names.is_none()
-            && objects.patterns.is_empty()
-            && objects.dependent.is_empty()
-            && objects.dependent_schemas.is_empty()
-    });
+    let counted = (rules.object.as_ref()).is_some_and(|objects| objects.counted);
     // Names no property, and holds every field to one schema.
     let map = (rules.object.as_ref()).is_some_and(|objects| {
         objects.properties.is_empty() && matches!(objects.extra, Extra::Checked(_))

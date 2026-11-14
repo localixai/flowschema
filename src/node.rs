@@ -263,6 +263,7 @@ impl Rules {
             objects.closing = !objects.dependent_schemas.is_empty();
             objects.simple =
                 objects.names.is_none() && objects.patterns.is_empty() && !objects.closing;
+            objects.counted = objects.simple;
         }
         self.has = self.groups();
     }
@@ -363,6 +364,8 @@ pub(crate) struct Objects {
     /// `propertyNames`, no `patternProperties`, nothing `closing`): most objects, which the
     /// quick walk reads in one pass (`Walk::in_order`).
     pub(crate) simple: bool,
+    /// `simple`, or that with a count of its fields beside: read in one pass too, once counted.
+    pub(crate) counted: bool,
     /// The types every other field is held to, where `extra` is a node of types alone (a map
     /// of strings, say): told here as a property is told its own (`compile/flatten.rs`).
     pub(crate) extra_types: u8,
@@ -411,6 +414,9 @@ pub(crate) const ARRAY: u8 = 1 << 5;
 pub(crate) const OBJECT: u8 = 1 << 6;
 /// Every type's bit: what a node that allows anything allows.
 pub(crate) const ALL: u8 = NULL | BOOLEAN | INTEGER | NUMBER | STRING | ARRAY | OBJECT;
+/// Beside a union branch's kinds (`Rules::kinds`): the branch asks only for types, so a value
+/// that is no number is held by it where its kind is among them, with the branch not walked.
+pub(crate) const TYPES_ALONE: u8 = 1 << 7;
 
 /// The bits of `value`'s kinds: a number with no fraction is an integer too (only one written
 /// so, where `strict`: draft 4).

@@ -111,9 +111,14 @@ impl<'j> Compiler<'j> {
             || !dependent.is_empty()
             || !dependent_schemas.is_empty();
         let names = k.property_names.map(|schema| self.node(schema, base));
+        let counted = names.is_none()
+            && patterns.is_empty()
+            && dependent.is_empty()
+            && dependent_schemas.is_empty();
         Some(Box::new(Objects {
             closing,
-            simple: names.is_none() && patterns.is_empty() && !closing,
+            simple: counted && !closing,
+            counted,
             lookup: crate::hash::Names::of(&properties),
             required,
             properties: properties.into_boxed_slice(),

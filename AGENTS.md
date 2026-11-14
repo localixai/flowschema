@@ -15,8 +15,8 @@ and it binds an agent as it binds a person. This file says where things are and 
   names each child where its `$ref` lands, `unions.rs` finds the unions that are one list of
   names; `index.rs` and `uri.rs` resolve references;
   `validate.rs` and `validate/` walk the data (`lanes.rs` the way of the quick walk through
-  each shape of node, chosen for a node as its schema is compiled, `loose.rs` an object
-  keyed by a pattern,
+  each shape of node, chosen for a node as its schema is compiled, `unions.rs` the ways
+  through a union, `loose.rs` an object keyed by a pattern,
   `objects.rs` an object in the order of its fields, `partial.rs` a call still being
   written); `fit.rs` fits a schema to a provider's
   strict mode, `cut.rs` reads a text the output limit cut off, `mend.rs` reads what a model

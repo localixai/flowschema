@@ -45,7 +45,10 @@
   up. A fraction held to a `multipleOf` of few decimal places is told with no spelling of it.
   An `enum` or a `const` of numbers is compared where the value stands, and an object held to
   a count of its fields, beside the names it requires or one schema for every field, goes by
-  the short ways too.
+  the short ways too. An object that names far more properties than a value has fields finds
+  each field by hash on the quick walk, and a union goes by a function for the way it is told
+  (its list of names, its tag, an `anyOf` or a `oneOf` branch by branch), where a branch that
+  asks only for types holds a value of its kinds with no call.
 - Every verdict and message is unchanged: the official suite, MaskBench and the quick loop's
   fingerprint say so.
 - `bench/quick/`: the loop a change is measured in first, in instructions, cycles and
