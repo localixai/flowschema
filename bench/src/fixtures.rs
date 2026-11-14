@@ -216,8 +216,26 @@ pub fn requests() -> Vec<(&'static str, Value, Value)> {
             "background": {"type": "boolean", "description": "Whether to run it detached."}}});
     let call = json!({"command": "cargo test --locked --quiet 2>&1 | grep -E 'test result|FAILED' | head -20",
         "description": "Run the tests and show what failed", "timeout": 120_000});
+    // A structured answer as a typed model writes its schema: nested models by `$ref` into
+    // `$defs`, an optional field as an `anyOf` with null.
+    let nested = json!({"type": "object", "required": ["title", "author", "tags"],
+        "$defs": {
+            "Author": {"type": "object", "required": ["name"], "properties": {
+                "name": {"type": "string"},
+                "email": {"anyOf": [{"type": "string", "format": "email"}, {"type": "null"}]}}},
+            "Tag": {"type": "object", "required": ["label"], "properties": {
+                "label": {"type": "string"}, "weight": {"type": "number", "minimum": 0}}}},
+        "properties": {
+            "title": {"type": "string"},
+            "author": {"$ref": "#/$defs/Author"},
+            "summary": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+            "tags": {"type": "array", "items": {"$ref": "#/$defs/Tag"}}}});
+    let written = json!({"title": "Release notes", "summary": null,
+        "author": {"name": "Ada", "email": "ada@example.com"},
+        "tags": [{"label": "release", "weight": 1}, {"label": "notes"}]});
     vec![
         ("review verdict", verdict(), issues(5, false)),
         ("one tool call", tool, call),
+        ("nested models", nested, written),
     ]
 }

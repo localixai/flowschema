@@ -37,7 +37,7 @@ impl Walk<'_> {
             let ok = self.has_type(property.types, value)
                 || self.fits(id, value)
                 || (property.leaf && self.leaf_holds(id, value))
-                || self.node(id, value, &At::Key(at, name), r.part(), 0);
+                || self.child(id, value, &At::Key(at, name), r.part());
             if !r.took(ok) {
                 return false;
             }
@@ -94,7 +94,7 @@ impl Walk<'_> {
             let ok = match found {
                 Some(property) => {
                     met |= property.bit;
-                    let walked = || self.node(property.id, value, &At::Root, Report::quiet(), 0);
+                    let walked = || self.holds(property.id, value, 0);
                     // A node of types alone, and most leaves, are settled either way where
                     // the field stands: a value that surely fails is not walked to fail.
                     if property.types != 0 {
@@ -108,9 +108,7 @@ impl Walk<'_> {
                 None => match objects.extra {
                     Extra::Absent | Extra::Allowed => true,
                     Extra::Refused => false,
-                    Extra::Checked(id) => {
-                        self.fits(id, value) || self.node(id, value, &At::Root, Report::quiet(), 0)
-                    }
+                    Extra::Checked(id) => self.holds(id, value, 0),
                 },
             };
             if !ok {
@@ -138,7 +136,7 @@ impl Walk<'_> {
             return None;
         }
         for (name, value) in fields {
-            let ok = self.fits(id, value) || self.node(id, value, &At::Key(at, name), r.part(), 0);
+            let ok = self.fits(id, value) || self.child(id, value, &At::Key(at, name), r.part());
             if !r.took(ok) {
                 return Some(false);
             }

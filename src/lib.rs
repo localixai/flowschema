@@ -18,10 +18,13 @@
 struct Docs;
 
 mod compile;
+mod cut;
 mod draft;
+mod fit;
 mod format;
 mod hash;
 mod index;
+mod mend;
 mod node;
 mod number;
 mod pattern;
@@ -34,6 +37,8 @@ use std::sync::OnceLock;
 
 use serde_json::Value;
 
+pub use cut::whole;
+pub use fit::{Fitted, Provider, fit};
 use node::Node;
 use pattern::Pattern;
 use report::{At, Report};
@@ -109,7 +114,7 @@ impl Schema {
         let walk = self.walk();
         match self.leaf.then(|| walk.leaf(0, data)).flatten() {
             Some(holds) => holds,
-            None => walk.node(0, data, &At::Root, Report::quiet(), 0),
+            None => walk.holds(0, data, 0),
         }
     }
 
@@ -124,6 +129,16 @@ impl Schema {
         let mut out = vec![];
         (self.walk()).node(0, data, &At::Root, Report::said(&mut out), 0);
         out
+    }
+
+    /// `data` read as the model meant it, where the schema leaves no doubt: a number, a boolean
+    /// or null written as a string, an object or an array sent as a string of JSON, each where
+    /// the schema asks for the one and not for a string. Mended in place, each change said with
+    /// where (`data.limit: "30" read as 30`); check it after.
+    pub fn mend(&self, data: &mut Value) -> Vec<String> {
+        let mut said = vec![];
+        mend::mend(&self.nodes, 0, data, "data", &mut said);
+        said
     }
 
     /// What the schema asks that is not checked here, each named once.

@@ -71,6 +71,8 @@ pub(crate) struct Rules {
     pub(crate) only_types: Option<u8>,
     /// What the node asks, where it is a leaf the walk settles where it stands (`Leaf`).
     pub(crate) leaf: Leaf,
+    /// The lane the quick walk takes through the node (`Lane`).
+    pub(crate) lane: Lane,
     /// The node this one only refers to, where a `$ref` is all it asks.
     pub(crate) alias: Option<Id>,
     /// An array that asks only its type, its count and its items' types: the quick walk reads
@@ -169,6 +171,21 @@ pub(crate) enum Leaf {
     /// the count of bytes says it holds (`min_length`, `max_length`: at least four bytes a
     /// character for the least, at most one for the most), then `pattern` and `format`.
     Text,
+}
+
+/// The lane the quick walk takes through a node (`Walk::holds`): most nodes that are no leaf
+/// are an object or an array and no more, and are walked with nothing else looked at.
+#[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
+pub(crate) enum Lane {
+    /// Every keyword the node may have is read (`Walk::node`).
+    #[default]
+    Walk,
+    /// `type`, and an object held to `properties`, `required` and `additionalProperties`.
+    Object,
+    /// `type`, and an array held to its count and to one schema for every item.
+    Array,
+    /// An `anyOf` or a `oneOf` and nothing else.
+    Union,
 }
 
 /// What an array that asks only its type, its count and its items' types asks.

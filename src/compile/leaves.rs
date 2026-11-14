@@ -5,7 +5,10 @@
 
 use serde_json::Value;
 
-use crate::node::{BOOLEAN, HAS_KIND, HAS_NUMBER, HAS_STRING, INTEGER, Leaf, NULL, Rules, STRING};
+use crate::node::{
+    BOOLEAN, HAS_ARRAY, HAS_COMBINED, HAS_KIND, HAS_NUMBER, HAS_OBJECT, HAS_STRING, INTEGER, Lane,
+    Leaf, NULL, Rules, STRING,
+};
 
 /// What `rules` ask, where they are a leaf.
 pub(super) fn leaf(rules: &Rules) -> Leaf {
@@ -49,6 +52,32 @@ pub(super) fn leaf(rules: &Rules) -> Leaf {
     match text_alone && allows(STRING) {
         true => Leaf::Text,
         false => Leaf::Walked,
+    }
+}
+
+/// The lane the quick walk takes through `rules`.
+pub(super) fn lane(rules: &Rules) -> Lane {
+    let bare = rules.reference.is_none()
+        && rules.options.is_none()
+        && rules.constant.is_none()
+        && rules.unevaluated_fields.is_none()
+        && rules.unevaluated_items.is_none();
+    let own = rules.has & !HAS_KIND;
+    let object = (rules.object.as_ref()).is_some_and(|objects| objects.simple);
+    let array = (rules.array.as_ref()).is_some_and(|arrays| {
+        arrays.prefix.is_empty() && !arrays.unique && arrays.contains.is_none()
+    });
+    // One of the two unions, with no keyword beside it.
+    let union = rules.has == HAS_COMBINED
+        && rules.all_of.is_empty()
+        && rules.not.is_none()
+        && rules.condition.is_none()
+        && rules.any_of.is_empty() != rules.one_of.is_empty();
+    match (bare, own) {
+        (true, HAS_OBJECT) if object => Lane::Object,
+        (true, HAS_ARRAY) if array => Lane::Array,
+        (true, HAS_COMBINED) if union => Lane::Union,
+        (true | false, _) => Lane::Walk,
     }
 }
 

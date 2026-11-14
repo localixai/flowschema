@@ -181,8 +181,11 @@ impl<'j> Compiler<'j> {
         let referred = k.reference.and_then(Value::as_str);
         // Up to draft 7, a `$ref` is the whole schema: what is beside it, its id too, is not read.
         if let (Some(text), true) = (referred, draft.ref_alone()) {
+            // The node is its target and nothing else: an alias, as a `$ref` alone is later.
+            let reference = self.reference(text, base);
             return Rules {
-                reference: self.reference(text, base),
+                reference,
+                alias: reference,
                 ..Rules::default()
             };
         }
@@ -269,6 +272,7 @@ impl<'j> Compiler<'j> {
         // Known from the node alone: a union folded later (`kinds::fold`) is checked by its
         // types first, so a leaf found here is never asked of it.
         built.leaf = leaves::leaf(&built);
+        built.lane = leaves::lane(&built);
         built
     }
 

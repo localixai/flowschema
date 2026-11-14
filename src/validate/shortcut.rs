@@ -63,7 +63,23 @@ impl Walk<'_> {
         at: &At<'_>,
         r: Report<'_, F>,
     ) -> bool {
-        (F && self.node(id, value, &At::Root, Report::quiet(), 0)) || self.node(id, value, at, r, 0)
+        self.holds(id, value, 0) || (F && self.node(id, value, at, r, 0))
+    }
+
+    /// A value inside the data walked against node `id`: by the quick walk's lanes where
+    /// nothing is said (`holds`), as every node is where its failures are (`node`).
+    #[inline]
+    pub(super) fn child<const F: bool>(
+        &self,
+        id: Id,
+        value: &Value,
+        at: &At<'_>,
+        r: Report<'_, F>,
+    ) -> bool {
+        match F {
+            true => self.node(id, value, at, r, 0),
+            false => self.holds(id, value, 0),
+        }
     }
 
     /// Whether node `id` is a leaf that surely holds `value` (`Leaf`), asked of a field's value
@@ -85,7 +101,7 @@ impl Walk<'_> {
 
     /// What the leaf `rules` say of `value` (`leaf`).
     #[inline]
-    fn settles(&self, rules: &Rules, value: &Value) -> Option<bool> {
+    pub(super) fn settles(&self, rules: &Rules, value: &Value) -> Option<bool> {
         match rules.leaf {
             Leaf::Walked => None,
             // A value that is no string is none of the strings.
@@ -139,13 +155,12 @@ impl Walk<'_> {
         branches: &[Id],
         tag: Option<&Tag>,
         value: &Value,
-        at: &At<'_>,
         refs: usize,
         most: usize,
     ) -> usize {
         let mut count = 0;
         let mut enough = |id: Id| {
-            let holds = self.fits(id, value) || self.node(id, value, at, Report::quiet(), refs);
+            let holds = self.holds(id, value, refs);
             count += usize::from(holds);
             count >= most
         };

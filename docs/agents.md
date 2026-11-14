@@ -155,6 +155,81 @@ against the schema as it was written. The sources:
 [Gemini](https://ai.google.dev/gemini-api/docs/structured-output),
 [the Model Context Protocol](https://modelcontextprotocol.io/specification/2025-11-25/server/tools).
 
+## A schema fitted to a provider
+
+Send a provider's strict mode the part of the schema it takes, and check the answer against the
+schema as it was written. `fit` gives the schema to send, with what the provider does not hold
+taken out and what it asks of every object set, and says each change:
+
+```rust
+use flowschema::{Provider, Schema, fit};
+use serde_json::json;
+
+let written = json!({"type": "object", "required": ["path"], "properties": {
+    "path": {"type": "string"},
+    "limit": {"type": "integer", "minimum": 1}}});
+
+let sent = fit(&written, Provider::Anthropic);
+assert_eq!(sent.schema["properties"]["limit"], json!({"type": "integer"}));
+assert_eq!(sent.schema["additionalProperties"], json!(false));
+assert_eq!(sent.changes, [
+    "schema.properties.limit: `minimum` is not held: taken out",
+    "schema: `additionalProperties` set to false, as the provider asks",
+]);
+
+// The provider held the answer to what it takes; the bound is still the schema's.
+let answer = json!({"path": "src/lib.rs", "limit": 0});
+assert!(Schema::new(&sent.schema).matches(&answer));
+assert_eq!(Schema::new(&written).mismatches(&answer), ["data.limit must be >= 1 (is 0)"]);
+```
+
+For OpenAI's strict mode every property becomes required, and one that was optional may be null
+instead; a `oneOf` is sent as an `anyOf`; for Gemini a `const` is sent as an `enum` of one value.
+The rules are the providers' documentation as it read in November 2026.
+
+## A call the output limit cut off
+
+A reply that reaches the output limit stops midway, and so do the arguments of the call it was
+writing. `whole` gives what was written whole: the string it stops in closed, every object and
+array still open closed, and what the cut left unfinished left out (a name with no value, a
+number that may go on, half an escape).
+
+```rust
+use flowschema::whole;
+use serde_json::json;
+
+let cut = r#"{"path": "src/lib.rs", "lines": [1, 2"#;
+assert_eq!(whole(cut), Some(json!({"path": "src/lib.rs", "lines": [1]})));
+
+let cut = r#"{"path": "src/lib.rs", "content": "fn main() {"#;
+assert_eq!(whole(cut), Some(json!({"path": "src/lib.rs", "content": "fn main() {"})));
+```
+
+What it gives is a value like any other: check it against the schema to learn which fields came
+whole and which are still missing.
+
+## What a model wrote, read as it meant it
+
+A model writes `"30"` where the schema asks for an integer, or sends an object as a string of
+JSON. Where the schema leaves no doubt, `mend` makes the value what it was meant to be and says
+so; where a string is allowed, or the schema is a union, nothing is guessed.
+
+```rust
+use flowschema::Schema;
+use serde_json::json;
+
+let schema = Schema::new(&json!({"type": "object", "properties": {
+    "limit": {"type": "integer"},
+    "paths": {"type": "array", "items": {"type": "string"}}}}));
+let mut call = json!({"limit": "30", "paths": "[\"src\", \"tests\"]"});
+assert!(!schema.matches(&call));
+
+let said = schema.mend(&mut call);
+assert_eq!(call, json!({"limit": 30, "paths": ["src", "tests"]}));
+assert_eq!(said[0], "data.limit: \"30\" read as 30");
+assert!(schema.matches(&call));
+```
+
 ## What is not checked
 
 A schema may ask for something flowschema does not check: a pattern's lookaround, an `idn-*`
@@ -177,12 +252,9 @@ on any thread: keep it in an `Arc` beside the tool it belongs to.
 
 ## In the works
 
-What an agent does with JSON beyond the check, planned for the next releases:
+What an agent does with JSON beyond this, planned for the next releases:
 
-- **Streamed and cut-off calls.** A call's arguments arrive in pieces, and a reply the output
-  limit cut off ends midway: what of it is whole, and whether what came so far can still match.
-- **A schema fitted to a provider.** The strict modes of model providers take only part of JSON
-  Schema (every property required, no `additionalProperties` but `false`, `anyOf` for `oneOf`):
-  the schema rewritten for one, with what it lost said, while the check stays the original's.
-- **Lenient reading of what models write.** A whole number written as `30.0`, arguments sent as a
-  string of JSON, `null` for an optional field: read as the model meant them, and said so.
+- **Calls as they stream.** A call's arguments arrive in pieces: whether what came so far can
+  still match, said before the call is whole.
+- **More of what models write.** `null` for an optional field the schema does not let be null,
+  an `enum` value in another case: read as the model meant them, and said so.

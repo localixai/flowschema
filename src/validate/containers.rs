@@ -6,6 +6,7 @@ use serde_json::{Map, Value};
 
 use super::Walk;
 use super::cursor::Cursor;
+use super::lanes::in_order;
 use crate::hash;
 use crate::node::{Arrays, Extra, Objects};
 use crate::report::{At, Report, said};
@@ -37,7 +38,7 @@ impl Walk<'_> {
         for (index, item) in items.iter().enumerate().filter(|_| !settled) {
             let ok = match (arrays.prefix.get(index), arrays.rest) {
                 (Some(id), _) => {
-                    self.fits(*id, item) || self.node(*id, item, &At::Index(at, index), r.part(), 0)
+                    self.fits(*id, item) || self.child(*id, item, &At::Index(at, index), r.part())
                 }
                 // Past the prefix an item is told by what `rest` was found to be: its types,
                 // a leaf settled where it stands, or a node to walk; nothing is asked twice.
@@ -67,8 +68,8 @@ impl Walk<'_> {
             return true;
         };
         let mut found = 0;
-        for (index, item) in items.iter().enumerate() {
-            if self.node(contains, item, &At::Index(at, index), Report::quiet(), 0) {
+        for item in items {
+            if self.holds(contains, item, 0) {
                 found += 1;
                 if most.is_none() && found >= least {
                     return true;
@@ -100,16 +101,9 @@ impl Walk<'_> {
         // `additionalProperties` alone, whose fields come in the order of their names: one pass
         // in that order, unless there are far more properties than fields (found by hash,
         // below) or far more fields than properties look at (each property looked up, `named`).
-        if !F && self.sorted && objects.simple {
-            let (given, known) = (fields.len(), objects.properties.len());
-            let hashed = objects.lookup.is_some() && known > given.saturating_mul(4);
-            let looked_up = known > 0
-                && known.saturating_mul(4) <= given
-                && matches!(objects.extra, Extra::Absent | Extra::Allowed);
-            if !hashed && !looked_up {
-                // A quick walk's failure is kept by the report, as every other is.
-                return self.in_order(objects, fields) || r.no(String::new);
-            }
+        if !F && self.sorted && objects.simple && in_order(objects, fields.len()) {
+            // A quick walk's failure is kept by the report, as every other is.
+            return self.in_order(objects, fields) || r.no(String::new);
         }
         // A full walk says the missing ones first; a quick one marks them as it meets the fields.
         let bits = objects.required_bits.filter(|_| !r.full());
@@ -169,7 +163,7 @@ impl Walk<'_> {
                 let ok = self.has_type(property.types, value)
                     || self.fits(id, value)
                     || (property.leaf && self.leaf_holds(id, value))
-                    || self.node(id, value, &here, r.part(), 0);
+                    || self.child(id, value, &here, r.part());
                 if !r.took(ok) {
                     return false;
                 }
@@ -177,7 +171,7 @@ impl Walk<'_> {
             for (place, id) in &objects.patterns {
                 if self.matches(*place, name) {
                     named = true;
-                    let ok = self.node(*id, value, &here, r.part(), 0);
+                    let ok = self.child(*id, value, &here, r.part());
                     if !r.took(ok) {
                         return false;
                     }
@@ -185,7 +179,7 @@ impl Walk<'_> {
             }
             let ok = match (named, &objects.extra) {
                 (true, _) | (false, Extra::Absent | Extra::Allowed) => true,
-                (false, Extra::Checked(id)) => self.node(*id, value, &here, r.part(), 0),
+                (false, Extra::Checked(id)) => self.child(*id, value, &here, r.part()),
                 (false, Extra::Refused) => {
                     r.no(|| said!("{at} has \"{name}\", which the schema does not allow"))
                 }

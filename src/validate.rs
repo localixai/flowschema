@@ -5,6 +5,7 @@
 
 mod containers;
 mod cursor;
+mod lanes;
 mod objects;
 mod scalars;
 mod shortcut;
@@ -23,7 +24,7 @@ use scalars::bounds;
 
 /// The most `$ref`s followed in a row with no step into the data: a schema that refers to
 /// itself ends there.
-const DEPTH: usize = 32;
+pub(crate) const DEPTH: usize = 32;
 
 /// The compiled schema a walk reads.
 pub(crate) struct Walk<'s> {
@@ -167,14 +168,14 @@ impl Walk<'_> {
         }
         let any = &rules.any_of;
         if !any.is_empty()
-            && self.matched(any, rules.any_tag.as_deref(), value, at, refs, 1) == 0
+            && self.matched(any, rules.any_tag.as_deref(), value, refs, 1) == 0
             && !r.no(|| said!("{at} matches none of the {} schemas of anyOf", any.len()))
         {
             return false;
         }
         let one = &rules.one_of;
         if !one.is_empty() {
-            let matched = self.matched(one, rules.one_tag.as_deref(), value, at, refs, 2);
+            let matched = self.matched(one, rules.one_tag.as_deref(), value, refs, 2);
             if matched != 1
                 && !r.no(|| {
                     let matches = if matched == 0 {
