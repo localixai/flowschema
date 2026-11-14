@@ -126,6 +126,7 @@ fn required(nodes: &[Node], id: Id) -> Option<(Vec<u64>, Box<[u64]>)> {
         };
         let names = branch.object.as_ref().filter(|names| {
             branch.lane == Lane::Required
+                && branch.reference.is_none()
                 && !names.closing
                 && branch.leaf == Leaf::Walked
                 && branch.types.is_none_or(|types| types & OBJECT != 0)

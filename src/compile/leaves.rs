@@ -63,10 +63,9 @@ const BOTH: u8 = HAS_OBJECT | HAS_COMBINED;
 
 pub(super) fn lane(rules: &Rules) -> Lane {
     let unevaluated = rules.unevaluated_fields.is_some() || rules.unevaluated_items.is_some();
-    let bare = rules.reference.is_none()
-        && rules.options.is_none()
-        && rules.constant.is_none()
-        && !unevaluated;
+    // A `$ref` beside the keywords is not theirs: it is followed first, by a way of its own
+    // (`lanes::referred`), and the lane is the keywords'.
+    let bare = rules.options.is_none() && rules.constant.is_none() && !unevaluated;
     let own = rules.has & !HAS_KIND;
     let object = (rules.object.as_ref()).is_some_and(|objects| objects.simple);
     let patterned = (rules.object.as_ref()).is_some_and(|objects| {
@@ -109,7 +108,7 @@ pub(super) fn lane(rules: &Rules) -> Lane {
         (true, HAS_NUMBER) => Lane::Number,
         (true, HAS_STRING) => Lane::Text,
         (true, HAS_COMBINED | BOTH) if union && (object || rules.object.is_none()) => Lane::Both,
-        (false, 0) if rules.reference.is_none() && !unevaluated => Lane::Kind,
+        (false, 0) if !unevaluated => Lane::Kind,
         (true | false, _) => Lane::Walk,
     }
 }

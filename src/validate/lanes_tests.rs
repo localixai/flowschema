@@ -282,3 +282,39 @@ fn an_object_of_many_properties_finds_few_fields_by_hash() {
         }
     }
 }
+
+/// A `$ref` beside other keywords is followed by the way of what it lands on, then its own
+/// keywords are read: the node says what the whole walk says, in a draft that reads both and
+/// in one where a `$ref` stands alone.
+#[test]
+fn a_ref_beside_keywords_is_held_as_the_whole_walk_holds_it() {
+    let definitions = json!({"light": {"type": "object", "properties": {"power": {"enum": ["on", "off"]}, "level": {"type": "integer", "minimum": 1}}}, "loop": {"$ref": "#/definitions/loop", "type": "object"}});
+    let schemas = [
+        json!({"$schema": "https://json-schema.org/draft/2020-12/schema", "$ref": "#/definitions/light", "required": ["power"], "definitions": definitions}),
+        json!({"$schema": "https://json-schema.org/draft/2020-12/schema", "$ref": "#/definitions/light", "minProperties": 2, "anyOf": [{"required": ["level"]}, {"required": ["x"]}], "definitions": definitions}),
+        json!({"$schema": "http://json-schema.org/draft-07/schema#", "$ref": "#/definitions/light", "required": ["power"], "definitions": definitions}),
+        json!({"$schema": "https://json-schema.org/draft/2020-12/schema", "$ref": "#/definitions/loop", "required": ["a"], "definitions": definitions}),
+        json!({"$schema": "https://json-schema.org/draft/2020-12/schema", "type": "array", "items": {"$ref": "#/definitions/light", "required": ["level"]}, "definitions": definitions}),
+    ];
+    let values = [
+        json!({}),
+        json!({"power": "on"}),
+        json!({"power": "dim"}),
+        json!({"power": "off", "level": 3}),
+        json!({"level": 0, "power": "on"}),
+        json!({"level": 2, "x": 1}),
+        json!({"a": 1}),
+        json!([]),
+        json!([{"level": 1}, {"power": "on"}]),
+        json!([{"level": 2, "power": "off"}]),
+        json!("on"),
+        json!(1),
+    ];
+    for schema in &schemas {
+        let compiled = Schema::new(schema);
+        for value in &values {
+            let said = compiled.mismatches(value).is_empty();
+            assert_eq!(compiled.matches(value), said, "{schema} with {value}");
+        }
+    }
+}

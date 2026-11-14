@@ -89,8 +89,22 @@ pub(crate) fn way(rules: &Rules) -> Way {
         (None, None, None, Leaf::Const) => constant,
         (None, None, None, Leaf::Range) => range,
         (None, None, None, Leaf::Text) => string,
-        (None, None, None, Leaf::Walked) => by_lane(rules),
+        (None, None, None, Leaf::Walked) => {
+            let unevaluated =
+                rules.unevaluated_fields.is_some() || rules.unevaluated_items.is_some();
+            match rules.reference.is_some() && !unevaluated {
+                true => referred,
+                false => by_lane(rules),
+            }
+        }
     }
+}
+
+/// A `$ref` beside other keywords: what it lands on by its own way, then the keywords by the
+/// lane that is theirs.
+fn referred(walk: &Walk<'_>, id: Id, rules: &Rules, value: &Value, refs: usize) -> bool {
+    (rules.reference).is_none_or(|target| refs < DEPTH && walk.holds(target, value, refs + 1))
+        && by_lane(rules)(walk, id, rules, value, refs)
 }
 
 /// The way of each lane.
@@ -289,11 +303,10 @@ fn kind(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, _: usize) -> bool 
         && (rules.constant.as_ref()).is_none_or(|one| json_eq(one, value))
 }
 
-/// A node no lane takes: by `direct`, or by `node` where a `$ref` stands beside keywords or
-/// what was not evaluated is asked.
+/// A node no lane takes: by `direct`, or by `node` where what was not evaluated is asked (a
+/// `$ref` beside it is then `node`'s to follow; any other was followed by `referred`).
 pub(crate) fn rest(walk: &Walk<'_>, id: Id, rules: &Rules, value: &Value, refs: usize) -> bool {
-    let unevaluated = rules.unevaluated_fields.is_some() || rules.unevaluated_items.is_some();
-    match rules.reference.is_some() || unevaluated {
+    match rules.unevaluated_fields.is_some() || rules.unevaluated_items.is_some() {
         true => walk.node(id, value, &At::Root, Report::quiet(), refs),
         false => walk.direct(rules, value, refs),
     }

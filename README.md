@@ -2,7 +2,7 @@
 
 <p align="center">
   <strong>JSON Schema for agents: tool calls and structured output, checked as models write them</strong><br>
-  Drafts 4 to 2020-12 · 2 dependencies · 309 KB · no allocation on a check · a request checked 7.2× faster than jsonschema
+  Drafts 4 to 2020-12 · 2 dependencies · 309 KB · no allocation on a check · a request checked 7.8× faster than jsonschema
 </p>
 
 <p align="center">
@@ -57,14 +57,14 @@ assert!(schema.unchecked().is_empty());
 
 - **Made for a schema that comes with the request.** An agent's schemas arrive at run time,
   often one with every request, so what a request costs is its schema compiled and one answer
-  checked. For a tool call that is 522 ns, where the `jsonschema` crate takes 3.76 µs (7.2×);
-  for a structured answer, 1.25 µs against 6.42 µs (5.1×). The schema is read where it is and
+  checked. For a tool call that is 533 ns, where the `jsonschema` crate takes 4.16 µs (7.8×);
+  for a structured answer, 1.27 µs against 6.62 µs (5.2×). The schema is read where it is and
   not copied, so there is no cache to keep.
 - **Fast to compile, fast to check.** On MaskBench's 11,306 schemas of real LLM tasks
-  flowschema compiles 3.65× faster than `jsonschema` (128.2 ms against 467.5 ms) and checks
-  every answer of the 9,779 both check whole 1.82× faster (2.39 ms against 4.34 ms), both built
-  for speed. Once compiled, a review's verdict is checked in 88 ns and a union of 64 tool calls
-  in 1.60 µs, beside 151 ns and 2.83 µs; no typical check, compile, request or message is slower.
+  flowschema compiles 3.68× faster than `jsonschema` (128.7 ms against 474.0 ms) and checks
+  every answer of the 9,779 both check whole 1.79× faster (2.39 ms against 4.30 ms), both built
+  for speed. Once compiled, a review's verdict is checked in 96 ns and a union of 64 tool calls
+  in 1.60 µs, beside 174 ns and 3.07 µs; no typical check, compile, request or message is slower.
 - **No allocation.** A check allocates nothing, valid data or not; the benchmarks count every
   allocation and fail a run that makes one.
 - **Messages a model can act on.** Each says where the value is, the rule it breaks and what the

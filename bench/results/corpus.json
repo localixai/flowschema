@@ -2,12 +2,12 @@
   "agreed": 36964,
   "answers": 36990,
   "checkMs": {
-    "jsonschema": 4.342510986900821,
-    "ours": 2.3853787185593505
+    "jsonschema": 4.296325740269782,
+    "ours": 2.393849034845034
   },
   "compileMs": {
-    "jsonschema": 467.54052115052383,
-    "ours": 128.17067541342365
+    "jsonschema": 473.98337889825393,
+    "ours": 128.68895626558486
   },
   "files": 11306,
   "jsonschemaRight": 36970,
@@ -15,7 +15,7 @@
   "panicked": 0,
   "refused": 8,
   "schemas": 11298,
-  "slower": 146,
+  "slower": 149,
   "timed": 9779,
   "unchecked": {
     "$ref outside the schema": 1,

@@ -48,7 +48,9 @@
   the short ways too. An object that names far more properties than a value has fields finds
   each field by hash on the quick walk, and a union goes by a function for the way it is told
   (its list of names, its tag, an `anyOf` or a `oneOf` branch by branch), where a branch that
-  asks only for types holds a value of its kinds with no call.
+  asks only for types holds a value of its kinds with no call. A `$ref` beside other keywords
+  is followed by the way of what it lands on, and the keywords then go by the lane that is
+  theirs, where both went by the walk that can say what is wrong.
 - Every verdict and message is unchanged: the official suite, MaskBench and the quick loop's
   fingerprint say so.
 - `bench/quick/`: the loop a change is measured in first, in instructions, cycles and
