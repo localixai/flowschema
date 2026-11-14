@@ -1,21 +1,21 @@
 {
   "invalid": {
     "answers": 22979,
-    "fewer": 20488,
-    "jsonschema": 48716461.74997342,
-    "more": 1134,
-    "ours": 30740562.48499734
+    "fewer": 21072,
+    "jsonschema": 48720078.14497353,
+    "more": 960,
+    "ours": 30038537.509997435
   },
   "schemas": {
     "all": 9779,
-    "fewer": 9173,
-    "more": 205
+    "fewer": 9407,
+    "more": 147
   },
   "valid": {
     "answers": 13937,
-    "fewer": 13085,
-    "jsonschema": 55760430.53998491,
-    "more": 333,
-    "ours": 34848844.57000088
+    "fewer": 13353,
+    "jsonschema": 55767174.904984854,
+    "more": 238,
+    "ours": 34104951.16999979
   }
 }

@@ -390,3 +390,44 @@ fn an_object_with_dependencies_is_held_as_the_whole_walk_holds_it() {
         }
     }
 }
+
+/// A value of one or two fields against a few properties more finds each field among them, and
+/// says what the whole walk says: of fields the object names, of others, of required names.
+#[test]
+fn a_value_of_few_fields_finds_them_among_the_properties() {
+    let properties = json!({"a": {"type": "integer"}, "b": {"type": "string"}, "c": {"enum": ["x"]},
+        "d": {"type": "array", "items": {"type": "integer"}}, "e": {}, "f": {"type": "null"}});
+    let schemas = [
+        json!({"type": "object", "properties": properties}),
+        json!({"properties": properties, "additionalProperties": false, "required": ["a"]}),
+        json!({"properties": properties, "additionalProperties": {"type": "boolean"}, "required": ["f", "z"]}),
+        json!({"properties": properties, "minProperties": 1, "dependencies": {"a": ["b"]}}),
+        json!({"properties": {"a": {"type": "integer"}, "b": {}, "c": {}}, "required": ["c"]}),
+    ];
+    let values = [
+        json!({}),
+        json!({"a": 1}),
+        json!({"a": "1"}),
+        json!({"f": null}),
+        json!({"f": 1}),
+        json!({"z": true}),
+        json!({"a": 1, "b": "s"}),
+        json!({"a": 1, "z": true}),
+        json!({"c": "x", "d": [1, 2]}),
+        json!({"c": "y"}),
+        json!({"d": [1, "2"], "e": 1}),
+        json!({"f": null, "z": true}),
+        json!({"f": null, "z": 1}),
+        json!({"zz": 0}),
+        json!({"a": 1, "b": "s", "c": "x"}),
+        json!([]),
+        json!(1),
+    ];
+    for schema in &schemas {
+        let compiled = Schema::new(schema);
+        for value in &values {
+            let said = compiled.mismatches(value).is_empty();
+            assert_eq!(compiled.matches(value), said, "{schema} with {value}");
+        }
+    }
+}

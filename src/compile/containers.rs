@@ -136,11 +136,30 @@ impl<'j> Compiler<'j> {
             || !dependent_schemas.is_empty();
         let names = k.property_names.map(|schema| self.node(schema, base));
         let ordered = names.is_none() && patterns.is_empty();
+        let lookup = crate::hash::Names::of(&properties);
+        let known = properties.len();
+        // Fewer fields than these find each among the properties: a quarter of many
+        // properties (by hash), one or two against a few more (each compared).
+        let least = match (&lookup, known) {
+            (Some(_), _) => known.div_ceil(4),
+            (None, 5..) => 3,
+            (None, 3..=4) => 2,
+            (None, 0..=2) => 0,
+        };
+        // An object that looks at no other field, given four times its properties in
+        // fields, looks each property up.
+        let open = matches!(extra, Extra::Absent | Extra::Allowed);
+        let most = if open && known > 0 {
+            known.saturating_mul(4) - 1
+        } else {
+            usize::MAX
+        };
         Some(Box::new(Objects {
             closing,
             simple: ordered && !closing,
             ordered,
-            lookup: crate::hash::Names::of(&properties),
+            lookup,
+            in_order: (least, most.saturating_sub(least)),
             required,
             properties: properties.into_boxed_slice(),
             required_bits: all_named.then_some(bits),

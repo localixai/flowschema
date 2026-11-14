@@ -43,15 +43,15 @@ const CARDS: Card[] = [
         {
           grid: [
             [['dim', 'compiled, one answer checked'], ['dim', 'flowschema'], ['dim', 'jsonschema'], ['dim', '']],
-            ['a tool call', ['hi', '508 ns'], '3.89 µs', ['ok', '7.6×']],
-            ['a structured answer', ['hi', '1.16 µs'], '6.31 µs', ['ok', '5.4×']],
-            ['nested models', ['hi', '2.46 µs'], '10.34 µs', ['ok', '4.2×']],
+            ['a tool call', ['hi', '516 ns'], '3.98 µs', ['ok', '7.7×']],
+            ['a structured answer', ['hi', '1.26 µs'], '6.50 µs', ['ok', '5.2×']],
+            ['nested models', ['hi', '2.67 µs'], '10.47 µs', ['ok', '3.9×']],
           ],
           align: 'lrrr',
         },
         ui(GAP, [['dim', 'Both built for speed, on an Apple M5; the jsonschema crate 0.60.']]),
       ],
-      'A schema compiled and one answer checked: a tool call in 508 nanoseconds where the jsonschema crate takes 3.89 microseconds, a structured answer in 1.16 against 6.31 microseconds, nested models in 2.46 against 10.34',
+      'A schema compiled and one answer checked: a tool call in 516 nanoseconds where the jsonschema crate takes 3.98 microseconds, a structured answer in 1.26 against 6.50 microseconds, nested models in 2.67 against 10.47',
     ),
   },
   {

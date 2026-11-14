@@ -57,7 +57,10 @@
   other. A pattern that is a run of one class (`[a-f0-9]{24}`) reads a text of ASCII in one
   tight pass wherever it is held, and one of many words not held at both ends goes to the
   automaton, which reads the text once. An array that asks only types is read in its own way
-  with no call beneath.
+  with no call beneath. Whether an object is read in the order of its fields is one comparison,
+  worked out as the schema is compiled, and a value of one or two fields against a few
+  properties more finds each field among them, with no property gone past: every object's
+  check is 2 to 5% shorter in instructions, and a sparse value's shorter still.
 - Every verdict and message is unchanged: the official suite, MaskBench and the quick loop's
   fingerprint say so.
 - `bench/quick/`: the loop a change is measured in first, in instructions, cycles and

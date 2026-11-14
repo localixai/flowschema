@@ -7,7 +7,7 @@ use std::cmp::Ordering;
 use serde_json::{Map, Value};
 
 use super::Walk;
-use crate::node::{Extra, Objects};
+use crate::node::{Extra, Objects, Property};
 use crate::report::{At, Report};
 use crate::text::{field, order, same_bytes};
 
@@ -118,6 +118,38 @@ impl Walk<'_> {
             }
         }
         met & required == required
+    }
+}
+
+impl Walk<'_> {
+    /// The quick walk of one or two fields against a few properties: each field is looked for
+    /// among them, a comparison of lengths telling most apart, and no property is gone past.
+    pub(super) fn few(&self, objects: &Objects, fields: &Map<String, Value>) -> bool {
+        let mut met = 0;
+        for (name, value) in fields {
+            let named =
+                |property: &&Property| same_bytes(property.name.as_bytes(), name.as_bytes());
+            let ok = match (objects.properties.iter().find(named), &objects.extra) {
+                (Some(property), _) => {
+                    met |= property.bit;
+                    match property.types {
+                        0 => self.holds(property.id, value, 0),
+                        types => self.has_type(types, value),
+                    }
+                }
+                (None, Extra::Absent | Extra::Allowed) => true,
+                (None, Extra::Refused) => false,
+                (None, Extra::Checked(id)) => self.holds(*id, value, 0),
+            };
+            if !ok {
+                return false;
+            }
+        }
+        match objects.required_bits {
+            Some(required) => met & required == required,
+            None => (objects.required.iter())
+                .all(|it| field(fields, objects.required_name(it)).is_some()),
+        }
     }
 }
 

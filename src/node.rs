@@ -373,6 +373,10 @@ pub(crate) struct Objects {
     pub(crate) branches: Box<[u64]>,
     /// The places among `properties` of those the branches name: the only ones looked for.
     pub(crate) named: Box<[usize]>,
+    /// The counts of fields a value is read in the order of its names for, as the least and
+    /// how many more: a value of fewer finds each field among the properties, and one of far
+    /// more looks each property up (`lanes::in_order`, told by one comparison).
+    pub(crate) in_order: (usize, usize),
     /// Whether its fields are read in one pass (no `propertyNames`, no `patternProperties`),
     /// whatever it is held to once they are (`closing`).
     pub(crate) ordered: bool,

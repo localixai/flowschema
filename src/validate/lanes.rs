@@ -246,6 +246,9 @@ fn unordered(walk: &Walk<'_>, objects: &Objects, value: &Value) -> bool {
             (!objects.closing || closed(walk, objects, value, fields))
                 && walk.by_hash(objects, lookup, fields)
         }
+        None if objects.ordered && given < objects.in_order.0 => {
+            (!objects.closing || closed(walk, objects, value, fields)) && walk.few(objects, fields)
+        }
         Some(_) | None => walk.fields(objects, value, fields, &At::Root, &mut Report::quiet()),
     }
 }
@@ -341,14 +344,12 @@ pub(crate) fn rest(walk: &Walk<'_>, id: Id, rules: &Rules, value: &Value, refs: 
 }
 
 /// Whether an object of `given` fields is walked in the order of its fields: so most are,
-/// unless there are far more properties than fields (found by hash) or far more fields than
-/// properties look at (each property looked up).
+/// unless there are far more properties than fields (each field found among them, by hash or
+/// by comparing where they are few) or far more fields than properties look at (each property
+/// looked up). The bounds are worked out as the schema is compiled (`Objects::in_order`), so
+/// the question is one comparison for every object.
 pub(super) fn in_order(objects: &Objects, given: usize) -> bool {
-    let known = objects.properties.len();
-    let hashed = objects.lookup.is_some() && known > given.saturating_mul(4);
-    let open = matches!(objects.extra, Extra::Absent | Extra::Allowed);
-    let looked_up = open && known > 0 && known.saturating_mul(4) <= given;
-    !hashed && !looked_up
+    given.wrapping_sub(objects.in_order.0) <= objects.in_order.1
 }
 
 #[cfg(test)]

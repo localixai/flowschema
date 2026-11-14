@@ -8,9 +8,9 @@ A schema that comes with a request is compiled, one answer is checked, and the s
 
 | | flowschema | `jsonschema` | |
 | --- | --- | --- | --- |
-| a tool call | 508 ns | 3.89 µs | 7.6× |
-| a structured answer (a review's verdict) | 1.16 µs | 6.31 µs | 5.4× |
-| nested models (`$defs`, `anyOf` with null) | 2.46 µs | 10.34 µs | 4.2× |
+| a tool call | 516 ns | 3.98 µs | 7.7× |
+| a structured answer (a review's verdict) | 1.26 µs | 6.50 µs | 5.2× |
+| nested models (`$defs`, `anyOf` with null) | 2.67 µs | 10.47 µs | 3.9× |
 
 ## Once compiled
 
@@ -18,8 +18,8 @@ Where the schema is known ahead and compiled once, a check allocates nothing.
 
 | | flowschema | `jsonschema` | |
 | --- | --- | --- | --- |
-| a review's verdict | 88 ns | 158 ns | 1.8× |
-| a union of 64 tool calls | 1.41 µs | 2.93 µs | 2.1× |
+| a review's verdict | 98 ns | 157 ns | 1.6× |
+| a union of 64 tool calls | 1.46 µs | 2.89 µs | 2.0× |
 
 No typical check, compile, request or message of the benchmark is slower than `jsonschema`'s.
 
@@ -29,11 +29,11 @@ No typical check, compile, request or message of the benchmark is slower than `j
 
 | | flowschema | `jsonschema` | |
 | --- | --- | --- | --- |
-| compiling every schema | 137.8 ms | 484.2 ms | 3.5× |
-| checking every answer of the 9,779 schemas both check whole | 2.42 ms | 4.41 ms | 1.8× |
+| compiling every schema | 138.2 ms | 490.1 ms | 3.5× |
+| checking every answer of the 9,779 schemas both check whole | 2.41 ms | 4.50 ms | 1.9× |
 | answers judged as labelled | 99.98% | 99.95% | |
 
-Over all of MaskBench flowschema is ahead; schema by schema it is not everywhere. Counted in the processor's instructions, which are the same on every run, it runs over 5% fewer than `jsonschema` on the answers of 93.8% of the schemas and over 5% more on those of 2.1%. Where it runs more, it is mostly on an answer that does not match: `jsonschema` asks an object's `required` names before it reads a value, and so meets some failures at once.
+Over all of MaskBench flowschema is ahead; schema by schema it is not everywhere. Counted in the processor's instructions, which are the same on every run, it runs over 5% fewer than `jsonschema` on the answers of 96.2% of the schemas and over 5% more on those of 1.5%. Where it runs more, it is mostly on an answer that does not match and is wrong in more than one place: each validator stops at the first failure it meets, the two read an object's fields in different orders, and the one that meets the cheap failure first is done first.
 
 ## Weight
 
