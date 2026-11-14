@@ -202,3 +202,22 @@ pub fn checks() -> Vec<(String, Value, Value)> {
 pub fn compiled() -> Vec<(&'static str, Value)> {
     vec![("review verdict", verdict()), ("tool calls", calls().0)]
 }
+
+/// What one request brings: a schema that arrives with it, and the one answer checked against it
+/// before both are dropped. A structured answer's, and a tool's parameters with one call of it,
+/// shaped as a coding agent's calls are: a flat object of a few fields, most of them strings.
+pub fn requests() -> Vec<(&'static str, Value, Value)> {
+    let tool = json!({"type": "object", "additionalProperties": false, "required": ["command"],
+        "properties": {
+            "command": {"type": "string", "minLength": 1, "description": "The command to run."},
+            "description": {"type": "string", "description": "What the command does."},
+            "timeout": {"type": "integer", "minimum": 1, "maximum": 600_000,
+                "description": "Milliseconds to wait."},
+            "background": {"type": "boolean", "description": "Whether to run it detached."}}});
+    let call = json!({"command": "cargo test --locked --quiet 2>&1 | grep -E 'test result|FAILED' | head -20",
+        "description": "Run the tests and show what failed", "timeout": 120_000});
+    vec![
+        ("review verdict", verdict(), issues(5, false)),
+        ("one tool call", tool, call),
+    ]
+}

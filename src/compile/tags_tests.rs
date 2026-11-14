@@ -16,7 +16,7 @@ fn calls() -> serde_json::Value {
 
 #[test]
 fn a_tagged_union_is_judged_as_its_branches_say() {
-    let schema = Schema::new(calls());
+    let schema = Schema::new(&calls());
     assert!(schema.matches(&json!({"type": "run", "command": "ls"})));
     assert!(
         !schema.matches(&json!({"type": "run", "path": "a"})),
@@ -44,7 +44,7 @@ fn a_tagged_union_is_judged_as_its_branches_say() {
 
 #[test]
 fn a_union_whose_branches_share_no_tag_tries_them_all() {
-    let schema = Schema::new(json!({"anyOf": [
+    let schema = Schema::new(&json!({"anyOf": [
         {"required": ["a"], "properties": {"a": {"const": "x"}}},
         {"required": ["b"], "properties": {"b": {"const": "y"}}},
         {"required": ["c"], "properties": {"c": {"enum": ["z", 1]}}}]}));
@@ -55,7 +55,7 @@ fn a_union_whose_branches_share_no_tag_tries_them_all() {
 
 #[test]
 fn a_tag_with_values_shared_by_branches_tries_each() {
-    let schema = Schema::new(json!({"anyOf": [
+    let schema = Schema::new(&json!({"anyOf": [
         {"required": ["k"], "properties": {"k": {"enum": ["a", "b"]}, "n": {"type": "integer"}}},
         {"required": ["k"], "properties": {"k": {"const": "b"}, "n": {"type": "string"}}},
         {"required": ["k"], "properties": {"k": {"const": "c"}}}]}));

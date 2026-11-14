@@ -7,7 +7,7 @@ use serde_json::Value;
 use super::Compiler;
 use super::keywords::count;
 use super::read::Keywords;
-use crate::node::{Arrays, Extra, Objects, Property, Required};
+use crate::node::{Arrays, Extra, Node, Objects, Property, Required};
 
 impl<'j> Compiler<'j> {
     pub(super) fn arrays(&mut self, k: &Keywords<'j>, base: &str) -> Option<Box<Arrays>> {
@@ -26,6 +26,7 @@ impl<'j> Compiler<'j> {
         Some(Box::new(Arrays {
             prefix: self.many(prefix, base),
             rest: rest.map(|schema| self.node(schema, base)),
+            rest_leaf: false,
             min_items: count(k.min_items),
             max_items: count(k.max_items),
             unique: k.unique_items == Some(&Value::Bool(true)),
@@ -45,10 +46,13 @@ impl<'j> Compiler<'j> {
             let bit = place
                 .filter(|place| *place < 64)
                 .map_or(0, |place| 1 << place);
+            // What its node asks is told once every node is built (`flatten::settle`).
             properties.push(Property {
                 name: name.as_str().into(),
                 id: self.node(schema, base),
                 bit,
+                leaf: false,
+                types: 0,
             });
         }
         // In order, as a data object's fields come: a walk meets both in one pass.
@@ -77,7 +81,11 @@ impl<'j> Compiler<'j> {
             None => Extra::Absent,
             Some(Value::Bool(true)) => Extra::Allowed,
             Some(Value::Bool(false)) => Extra::Refused,
-            Some(schema) => Extra::Checked(self.node(schema, base)),
+            Some(schema) => match self.node(schema, base) {
+                // A schema that allows anything is `true`: no field is held to it.
+                id if matches!(self.nodes.get(id), Some(Node::Any)) => Extra::Allowed,
+                id => Extra::Checked(id),
+            },
         };
         let (mut dependent, mut dependent_schemas) = (vec![], vec![]);
         let deps = [k.dependent_required, k.dependent_schemas, k.dependencies];
@@ -104,15 +112,17 @@ impl<'j> Compiler<'j> {
             || max_fields.is_some()
             || !dependent.is_empty()
             || !dependent_schemas.is_empty();
+        let names = k.property_names.map(|schema| self.node(schema, base));
         Some(Box::new(Objects {
             closing,
+            simple: names.is_none() && patterns.is_empty() && !closing,
             lookup: crate::hash::Names::of(&properties),
             required,
             properties: properties.into_boxed_slice(),
             required_bits: all_named.then_some(bits),
             patterns: patterns.into_boxed_slice(),
             extra,
-            names: k.property_names.map(|schema| self.node(schema, base)),
+            names,
             min_fields,
             max_fields,
             dependent: dependent.into_boxed_slice(),

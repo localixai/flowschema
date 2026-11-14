@@ -122,6 +122,11 @@ impl<'j> Keywords<'j> {
         k
     }
 
+    /// Whether the object says no keyword at all: `{}`, or annotations alone. It allows anything.
+    pub(super) fn silent(&self) -> bool {
+        self.said == 0
+    }
+
     /// `type`, where it is the one keyword the object says.
     pub(super) fn only_type(&self) -> Option<&'j Value> {
         self.kind.filter(|_| self.said == 1)

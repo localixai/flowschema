@@ -35,10 +35,19 @@ impl Walk<'_> {
         let settled =
             typed.is_some_and(|types| items.iter().all(|item| self.has_type(types, item)));
         for (index, item) in items.iter().enumerate().filter(|_| !settled) {
-            let Some(id) = arrays.prefix.get(index).copied().or(arrays.rest) else {
-                break;
+            let ok = match (arrays.prefix.get(index), arrays.rest) {
+                (Some(id), _) => {
+                    self.fits(*id, item) || self.node(*id, item, &At::Index(at, index), r.part(), 0)
+                }
+                // Past the prefix an item is told by what `rest` was found to be: its types,
+                // a leaf settled where it stands, or a node to walk; nothing is asked twice.
+                (None, Some(id)) => {
+                    typed.is_some_and(|types| self.has_type(types, item))
+                        || (arrays.rest_leaf && self.leaf_holds(id, item))
+                        || self.said(id, item, &At::Index(at, index), r.part())
+                }
+                (None, None) => break,
             };
-            let ok = self.fits(id, item) || self.node(id, item, &At::Index(at, index), r.part(), 0);
             if !r.took(ok) {
                 return false;
             }
@@ -87,6 +96,21 @@ impl Walk<'_> {
         at: &At<'_>,
         r: &mut Report<'_, F>,
     ) -> bool {
+        // The quick walk of most objects, held to `properties`, `required` and
+        // `additionalProperties` alone, whose fields come in the order of their names: one pass
+        // in that order, unless there are far more properties than fields (found by hash,
+        // below) or far more fields than properties look at (each property looked up, `named`).
+        if !F && self.sorted && objects.simple {
+            let (given, known) = (fields.len(), objects.properties.len());
+            let hashed = objects.lookup.is_some() && known > given.saturating_mul(4);
+            let looked_up = known > 0
+                && known.saturating_mul(4) <= given
+                && matches!(objects.extra, Extra::Absent | Extra::Allowed);
+            if !hashed && !looked_up {
+                // A quick walk's failure is kept by the report, as every other is.
+                return self.in_order(objects, fields) || r.no(String::new);
+            }
+        }
         // A full walk says the missing ones first; a quick one marks them as it meets the fields.
         let bits = objects.required_bits.filter(|_| !r.full());
         if bits.is_none() && !missing(objects, fields, at, r) {
@@ -102,35 +126,14 @@ impl Walk<'_> {
         // Only `properties` look at a field: with more fields than it names, each it names is
         // looked up, and the rest are never read.
         if open && fields.len() > objects.properties.len() {
-            let mut met = 0;
-            for property in &objects.properties {
-                let (name, id) = (&*property.name, property.id);
-                let Some(value) = field(fields, name) else {
-                    // A required field looked up and not there: no need to read on.
-                    if bits.is_some() && property.bit != 0 {
-                        return r.no(String::new);
-                    }
-                    continue;
-                };
-                met |= property.bit;
-                let ok = self.fits(id, value)
-                    || self.leaf_holds(id, value)
-                    || self.node(id, value, &At::Key(at, name), r.part(), 0);
-                if !r.took(ok) {
-                    return false;
-                }
-            }
-            if bits.is_some_and(|bits| met & bits != bits) {
-                return r.no(String::new);
-            }
-            return !objects.closing || self.closing(objects, object, fields, at, r);
+            return self.named(objects, object, fields, at, r, bits);
         }
         if let Some(ok) = self.only_extra(objects, object, fields, at, r) {
             return ok;
         }
-        let mut met = 0;
         let unread = open && objects.properties.is_empty();
         let sparse = objects.properties.len() > fields.len().saturating_mul(4);
+        let mut met = 0;
         let mut cursor = Cursor::new(&objects.properties);
         for (name, value) in fields.iter().filter(|_| !unread) {
             let here = At::Key(at, name);
@@ -157,14 +160,15 @@ impl Walk<'_> {
                 // The data's fields come in the order of their names, as the cursor reads them:
                 // a hash is worth its cost only where the schema names far more than come.
                 Some(lookup) if sparse => (lookup.find(&objects.properties, name))
-                    .and_then(|place| objects.properties.get(place))
-                    .map(|property| (property.id, property.bit)),
+                    .and_then(|place| objects.properties.get(place)),
                 Some(_) | None => cursor.find(name),
             };
-            if let Some((id, bit)) = found {
-                (met, named) = (met | bit, true);
-                let ok = self.fits(id, value)
-                    || self.leaf_holds(id, value)
+            if let Some(property) = found {
+                (met, named) = (met | property.bit, true);
+                let id = property.id;
+                let ok = self.has_type(property.types, value)
+                    || self.fits(id, value)
+                    || (property.leaf && self.leaf_holds(id, value))
                     || self.node(id, value, &here, r.part(), 0);
                 if !r.took(ok) {
                     return false;
@@ -198,35 +202,9 @@ impl Walk<'_> {
         !objects.closing || self.closing(objects, object, fields, at, r)
     }
 
-    /// Where only `additionalProperties` asks anything of a field: each held to it, nothing
-    /// looked up; `None` where other keywords name fields.
-    fn only_extra<const F: bool>(
-        &self,
-        objects: &Objects,
-        object: &Value,
-        fields: &Map<String, Value>,
-        at: &At<'_>,
-        r: &mut Report<'_, F>,
-    ) -> Option<bool> {
-        let Extra::Checked(id) = objects.extra else {
-            return None;
-        };
-        if !objects.properties.is_empty() || !objects.patterns.is_empty() || objects.names.is_some()
-        {
-            return None;
-        }
-        for (name, value) in fields {
-            let ok = self.fits(id, value) || self.node(id, value, &At::Key(at, name), r.part(), 0);
-            if !r.took(ok) {
-                return Some(false);
-            }
-        }
-        Some(!objects.closing || self.closing(objects, object, fields, at, r))
-    }
-
     /// What an object is held to once its fields are: the counts, `dependentRequired` and
     /// `dependentSchemas`.
-    fn closing<const F: bool>(
+    pub(super) fn closing<const F: bool>(
         &self,
         objects: &Objects,
         object: &Value,

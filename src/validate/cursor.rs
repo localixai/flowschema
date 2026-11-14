@@ -5,7 +5,7 @@ use std::cmp::Ordering;
 
 use serde_json::{Map, Value};
 
-use crate::node::{Id, Property};
+use crate::node::Property;
 use crate::text::{field, order, same_bytes};
 
 /// The fields `properties` names, met in the order of their names: a data object's fields come
@@ -31,8 +31,8 @@ impl<'p, 'd> Cursor<'p, 'd> {
         }
     }
 
-    /// The node of the field `name`, with its `required` bit.
-    pub(super) fn find(&mut self, name: &'d str) -> Option<(Id, u64)> {
+    /// The property the field `name` is.
+    pub(super) fn find(&mut self, name: &'d str) -> Option<&'p Property> {
         let wanted = name.as_bytes();
         let last = std::mem::replace(&mut self.last, name);
         let properties = self.properties;
@@ -41,7 +41,7 @@ impl<'p, 'd> Cursor<'p, 'd> {
             // Most fields are the next property: told so with no walk over their bytes.
             if same_bytes(bytes, wanted) {
                 self.next += 1;
-                return Some((known.id, known.bit));
+                return Some(known);
             }
             match order(bytes, wanted) {
                 Ordering::Less => {
@@ -50,7 +50,7 @@ impl<'p, 'd> Cursor<'p, 'd> {
                 }
                 Ordering::Equal => {
                     self.next += 1;
-                    return Some((known.id, known.bit));
+                    return Some(known);
                 }
                 Ordering::Greater => break,
             }
@@ -61,7 +61,7 @@ impl<'p, 'd> Cursor<'p, 'd> {
         }
         let place =
             (properties.binary_search_by(|known| order(known.name.as_bytes(), wanted))).ok()?;
-        properties.get(place).map(|known| (known.id, known.bit))
+        properties.get(place)
     }
 }
 

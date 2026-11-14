@@ -16,7 +16,7 @@ struct Run {
 impl Run {
     /// One row: what the check is, ours and the reference timed, and how far apart they are.
     fn row(&mut self, name: &str, schema: &Value, data: &Value) {
-        let ours = Schema::new(schema.clone());
+        let ours = Schema::new(schema);
         let Some(theirs) = reference(schema) else {
             self.markdown += &format!(
                 "| {} | – | – | jsonschema refused the schema |\n",
@@ -56,10 +56,8 @@ fn main() {
     run.markdown += "|---|---|---|---|\n";
     let mut compiled = vec![];
     for (name, schema) in fixtures::compiled() {
-        let a = measure(|| Schema::new(schema.clone()));
+        let ours = measure(|| Schema::new(&schema)).ns;
         let b = measure(|| reference(&schema).is_some());
-        let copy = measure(|| schema.clone());
-        let ours = a.ns - copy.ns;
         run.markdown += &format!(
             "| {name} | {} | {} | {:.2}x |\n",
             shown(ours),
@@ -71,9 +69,27 @@ fn main() {
             "ratio": b.ns / ours}),
         );
     }
+    // What one request costs where its schema comes with it: compiled, then one answer checked.
+    run.markdown += "\n| one request | flowschema | jsonschema 0.60 | flowschema faster by |\n";
+    run.markdown += "|---|---|---|---|\n";
+    let mut requests = vec![];
+    for (name, schema, answer) in fixtures::requests() {
+        let ours = measure(|| Schema::new(&schema).matches(&answer)).ns;
+        let b = measure(|| reference(&schema).is_some_and(|theirs| theirs.is_valid(&answer)));
+        run.markdown += &format!(
+            "| {name}: compiled, one answer checked | {} | {} | {:.2}x |\n",
+            shown(ours),
+            shown(b.ns),
+            b.ns / ours
+        );
+        requests.push(
+            json!({"name": name, "ours": {"ns": ours}, "jsonschema": {"ns": b.ns},
+            "ratio": b.ns / ours}),
+        );
+    }
     let review = verdict();
     let broken = issues(5, true);
-    let ours = Schema::new(review.clone());
+    let ours = Schema::new(&review);
     let mut messages = Value::Null;
     if let Some(theirs) = reference(&review) {
         let a = measure(|| ours.mismatches(&broken).len());
@@ -87,6 +103,7 @@ fn main() {
         );
         messages = json!({"ours": {"ns": a.ns}, "jsonschema": {"ns": b.ns}, "ratio": b.ns / a.ns});
     }
-    let json = json!({"checks": run.checks, "compiled": compiled, "messages": messages});
+    let json = json!({"checks": run.checks, "compiled": compiled, "requests": requests,
+        "messages": messages});
     publish("micro", &json, &run.markdown);
 }

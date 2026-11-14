@@ -5,6 +5,7 @@
 
 mod containers;
 mod cursor;
+mod objects;
 mod scalars;
 mod shortcut;
 mod unevaluated;
@@ -19,7 +20,6 @@ use crate::pattern::Pattern;
 use crate::report::{At, Report, said, short, type_of};
 use crate::text::same_text;
 use scalars::bounds;
-use shortcut::picked;
 
 /// The most `$ref`s followed in a row with no step into the data: a schema that refers to
 /// itself ends there.
@@ -32,6 +32,8 @@ pub(crate) struct Walk<'s> {
     pub(crate) patterns: &'s [(Box<str>, Option<Pattern>)],
     /// Draft 4's integers: only those written without a fraction.
     pub(crate) strict: bool,
+    /// Whether a data object's fields come in the order of their names (serde_json's own map).
+    pub(crate) sorted: bool,
 }
 
 impl Walk<'_> {
@@ -165,18 +167,14 @@ impl Walk<'_> {
         }
         let any = &rules.any_of;
         if !any.is_empty()
-            && !picked(any, rules.any_tag.as_deref(), value)
-                .any(|id| self.fits(id, value) || self.quick(id, value, at, refs))
+            && self.matched(any, rules.any_tag.as_deref(), value, at, refs, 1) == 0
             && !r.no(|| said!("{at} matches none of the {} schemas of anyOf", any.len()))
         {
             return false;
         }
         let one = &rules.one_of;
         if !one.is_empty() {
-            let matched = picked(one, rules.one_tag.as_deref(), value)
-                .filter(|id| self.fits(*id, value) || self.quick(*id, value, at, refs))
-                .take(2)
-                .count();
+            let matched = self.matched(one, rules.one_tag.as_deref(), value, at, refs, 2);
             if matched != 1
                 && !r.no(|| {
                     let matches = if matched == 0 {

@@ -7,7 +7,7 @@ use super::*;
     reason = "a test helper takes its arguments as the tests write them, by value"
 )]
 fn problems(schema: Value, data: Value) -> Vec<String> {
-    let schema = Schema::new(schema);
+    let schema = Schema::new(&schema);
     let found = schema.mismatches(&data);
     assert_eq!(
         schema.matches(&data),
@@ -223,7 +223,7 @@ fn many_failures_are_cut_to_the_first_twenty() {
 
 #[test]
 fn what_is_not_checked_here_is_named_once() {
-    let schema = Schema::new(json!({"properties": {
+    let schema = Schema::new(&json!({"properties": {
         "pattern": {"type": "string", "pattern": "^(?!a)"},
         "b": {"format": "idn-email", "pattern": "x"},
         "c": {"$ref": "other.json"}
@@ -256,7 +256,7 @@ fn a_ref_named_many_times_is_compiled_once() {
         json!({"$defs": {"n": {"type": "string"}}, "properties": {"a": {"$ref": "#/$defs/n"}}});
     let many = json!({"$defs": {"n": {"type": "string"}}, "properties": {
         "a": {"$ref": "#/$defs/n"}, "b": {"$ref": "#/$defs/n"}, "c": {"$ref": "#/$defs/n"}}});
-    let nodes = |schema: Value| Schema::new(schema).nodes.len();
+    let nodes = |schema: Value| Schema::new(&schema).nodes.len();
     // Each further field is its own node, and points at the one `n`.
     assert_eq!(nodes(many) - nodes(one), 2);
 }
@@ -354,7 +354,7 @@ fn a_ref_lands_on_an_anchor_an_id_or_a_pointer_inside_one() {
         problems(ids, json!([{"id": "x"}])),
         ["data[0].id must be integer (is string)"]
     );
-    let remote = Schema::new(json!({"$ref": "https://example.com/elsewhere.json"}));
+    let remote = Schema::new(&json!({"$ref": "https://example.com/elsewhere.json"}));
     assert_eq!(remote.unchecked(), ["$ref outside the schema"]);
 }
 
@@ -416,8 +416,8 @@ fn a_value_of_no_kind_enum_lists_fails_and_one_far_too_long_too() {
         problems(json!({"maxLength": 512}), json!(long)),
         ["data must have at most 512 characters (has 3000)"]
     );
-    assert!(!Schema::new(json!({"maxLength": 512})).matches(&json!("x".repeat(2049))));
-    assert!(Schema::new(json!({"maxLength": 512})).matches(&json!("é".repeat(512))));
+    assert!(!Schema::new(&json!({"maxLength": 512})).matches(&json!("x".repeat(2049))));
+    assert!(Schema::new(&json!({"maxLength": 512})).matches(&json!("é".repeat(512))));
 }
 
 #[test]
@@ -454,11 +454,11 @@ fn formats_are_checked_and_one_not_checked_here_is_said() {
         ]
     );
     assert!(
-        Schema::new(schema).unchecked().is_empty(),
+        Schema::new(&schema).unchecked().is_empty(),
         "a format of the schema's own asks nothing"
     );
     assert_eq!(
-        Schema::new(json!({"format": "idn-email"})).unchecked(),
+        Schema::new(&json!({"format": "idn-email"})).unchecked(),
         ["format"]
     );
 }
@@ -470,7 +470,7 @@ fn a_ref_lands_in_another_document_given_with_its_uri() {
         json!({"$defs": {"id": {"type": "integer", "minimum": 1}}}),
     )];
     let schema = Schema::with_documents(
-        json!({"properties": {"id": {"$ref": "https://example.com/defs.json#/$defs/id"}}}),
+        &json!({"properties": {"id": {"$ref": "https://example.com/defs.json#/$defs/id"}}}),
         &documents,
     );
     assert!(schema.unchecked().is_empty());
@@ -490,13 +490,13 @@ fn a_metaschema_without_the_validation_vocabulary_asks_none_of_its_keywords() {
                 "https://json-schema.org/draft/2020-12/vocab/core": true}}),
     );
     let schema = Schema::with_documents(
-        json!({"$schema": "https://example.com/meta/no-validation",
+        &json!({"$schema": "https://example.com/meta/no-validation",
             "properties": {"n": {"minimum": 10}}, "required": ["x"], "type": "string"}),
         &[meta],
     );
     assert!(schema.matches(&json!({"n": 1})));
     let applied = Schema::with_documents(
-        json!({"$schema": "https://example.com/meta/no-validation", "properties": {"n": false}}),
+        &json!({"$schema": "https://example.com/meta/no-validation", "properties": {"n": false}}),
         &[(
             "https://example.com/meta/no-validation".to_string(),
             json!({"$vocabulary": {"https://json-schema.org/draft/2020-12/vocab/core": true}}),

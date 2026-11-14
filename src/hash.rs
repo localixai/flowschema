@@ -6,6 +6,7 @@ use serde_json::Value;
 
 use crate::node::Property;
 use crate::number::{exact, json_eq, whole};
+use crate::text::same_text;
 
 /// Lists this long or shorter are compared item by item: hashing costs more than it saves.
 const SHORT: usize = 16;
@@ -48,6 +49,7 @@ fn halves(i: i128) -> [u64; 2] {
     words
 }
 
+#[inline]
 fn mix(h: u64, word: u64) -> u64 {
     (h ^ word)
         .wrapping_mul(0x9E37_79B9_7F4A_7C15)
@@ -55,6 +57,7 @@ fn mix(h: u64, word: u64) -> u64 {
         .wrapping_add(0x632B_E59B_D9B4_E019)
 }
 
+#[inline]
 fn bytes(seed: u64, text: &[u8]) -> u64 {
     let (chunks, rest) = text.as_chunks::<8>();
     let mut h = mix(seed, text.len() as u64);
@@ -70,33 +73,39 @@ fn bytes(seed: u64, text: &[u8]) -> u64 {
 
 /// The first item that repeats an earlier one, with the earliest it repeats, by their places.
 pub(crate) fn duplicate(items: &[Value]) -> Option<(usize, usize)> {
-    if items.len() <= SHORT {
+    /// The half of a slot that is a hash's top half; the other is a place plus one.
+    const TAG: u64 = 0xFFFF_FFFF_0000_0000;
+    // A place is kept in half a word: a list too long for that is compared as a short one is.
+    if items.len() <= SHORT || u32::try_from(items.len()).is_err() {
         return (items.iter().enumerate().skip(1)).find_map(|(second, b)| {
             (items.iter().take(second))
                 .position(|a| json_eq(a, b))
                 .map(|first| (first, second))
         });
     }
-    // An open-addressed set of the items seen, each slot a hash and a place plus one: one pass,
-    // each item looked up once, no sort.
+    // An open-addressed set of the items seen, each slot one word (half a hash, and a place
+    // plus one): one pass, each item looked up once, no sort, and half the table to clear.
     let size = items.len().checked_mul(2)?.checked_next_power_of_two()?;
     let mask = size - 1;
-    let mut slots: Vec<(u64, usize)> = vec![(0, 0); size];
+    let mut slots: Vec<u64> = vec![0; size];
     for (second, item) in items.iter().enumerate() {
-        let h = hash(item);
+        // A string, what most lists hold, is hashed where it stands, as `hash` hashes it.
+        let h = match item.as_str() {
+            Some(text) => bytes(5, text.as_bytes()),
+            None => hash(item),
+        };
         let mut at = slot(h, mask);
         loop {
             let slot = slots.get_mut(at)?;
-            match *slot {
-                (_, 0) => {
-                    *slot = (h, second + 1);
-                    break;
-                }
-                (seen, first) if seen == h && same(items, first - 1, second) => {
-                    return Some((first - 1, second));
-                }
-                _ => at = (at + 1) & mask,
+            let first = usize::try_from(*slot & !TAG).ok()?;
+            if first == 0 {
+                *slot = (h & TAG) | u64::try_from(second + 1).ok()?;
+                break;
             }
+            if *slot & TAG == h & TAG && same(items, first - 1, second) {
+                return Some((first - 1, second));
+            }
+            at = (at + 1) & mask;
         }
     }
     None
@@ -143,6 +152,23 @@ impl Table {
             }
         }
         Some(Table { slots })
+    }
+
+    /// Whether the string `text` is one of `options`: hashed and compared where it stands, as
+    /// `holds` would a value that holds it.
+    pub(crate) fn holds_text(&self, options: &[Value], text: &str) -> bool {
+        let h = bytes(5, text.as_bytes());
+        let mask = self.slots.len() - 1;
+        let mut at = slot(h, mask);
+        while let Some((slot_hash, place)) = self.slots.get(at).filter(|slot| slot.1 != 0) {
+            let option = options.get(usize::try_from(*place).unwrap_or_default().wrapping_sub(1));
+            let same = |option: &Value| option.as_str().is_some_and(|known| same_text(known, text));
+            if *slot_hash == h && option.is_some_and(same) {
+                return true;
+            }
+            at = (at + 1) & mask;
+        }
+        false
     }
 
     /// Whether `value` is one of `options` (those the table was made of).

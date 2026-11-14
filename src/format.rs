@@ -81,23 +81,27 @@ fn uuid(text: &[u8]) -> bool {
         [t[19], t[20], t[21], t[22], t[24], t[25], t[26], t[27]],
         [t[28], t[29], t[30], t[31], t[32], t[33], t[34], t[35]],
     ];
-    // Every check made, none skipped: no branch to mispredict.
-    let [first, second, third, fourth] = words.map(|word| hex_word(u64::from_le_bytes(word)));
-    ([t[8], t[13], t[18], t[23]] == [b'-'; 4]) & first & second & third & fourth
+    // Every check made, none skipped, and the four words judged together: no branch to
+    // mispredict, and one test for them all.
+    let [first, second, third, fourth] = words.map(u64::from_le_bytes);
+    let ascii = (first | second | third | fourth) & TOPS == 0;
+    let digits = hex_tops(first) & hex_tops(second) & hex_tops(third) & hex_tops(fourth);
+    ([t[8], t[13], t[18], t[23]] == [b'-'; 4]) & ascii & (digits & TOPS == TOPS)
 }
 
-/// Whether all eight bytes of `word` are ASCII hex digits: each byte's top bit says whether it
-/// is in a range, with no byte's sum carried into the next when none is past 0x7F (a word with
-/// one past it is refused whatever the sums say).
+/// A byte of ones in each byte of a word, and each byte's top bit.
+const ONES: u64 = 0x0101_0101_0101_0101;
+const TOPS: u64 = ONES * 0x80;
+
+/// The top bit of each byte of `word` that is an ASCII hex digit, where no byte is past 0x7F
+/// (a sum then carries into no other byte): the bit says whether the byte is in a range.
 #[inline(always)]
-fn hex_word(word: u64) -> bool {
-    const ONES: u64 = 0x0101_0101_0101_0101;
-    const TOPS: u64 = ONES * 0x80;
+fn hex_tops(word: u64) -> u64 {
     let at_least = |x: u64, low: u64| x.wrapping_add((0x80 - low) * ONES);
     let lower = word | (ONES * 0x20);
     let digit = at_least(word, 0x30) & !at_least(word, 0x3A);
     let letter = at_least(lower, 0x61) & !at_least(lower, 0x67);
-    word & TOPS == 0 && (digit | letter) & TOPS == TOPS
+    digit | letter
 }
 
 /// The number two ASCII digits write.

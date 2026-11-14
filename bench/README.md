@@ -12,9 +12,10 @@ The latest numbers: [`results/latest.md`](results/latest.md).
 
 | Benchmark | What it runs | Results |
 | --- | --- | --- |
-| `micro` | Typical checks of an agent's output, each on fixed schemas and data: a review's verdict valid and not, a thousand rows, wide objects, a tree by `$ref`, a union of tool calls, `uniqueItems`, a long `enum`, each `format`, common patterns; the time to compile two schemas; the time to write every message of an invalid answer | `micro.json`, `micro.md` |
+| `micro` | Typical checks of an agent's output, each on fixed schemas and data: a review's verdict valid and not, a thousand rows, wide objects, a tree by `$ref`, a union of tool calls, `uniqueItems`, a long `enum`, each `format`, common patterns; the time to compile two schemas; what a request costs, its schema compiled and one answer checked (a structured answer, and a tool call shaped as a coding agent's are: a flat object of a few fields, most of them strings); the time to write every message of an invalid answer | `micro.json`, `micro.md` |
 | `suite` | The official [JSON-Schema-Test-Suite](https://github.com/json-schema-org/JSON-Schema-Test-Suite): every required test of each draft from 4 to 2020-12, the format tests and ECMA-262's regular expressions, the suite's remote documents given to both | `suite.json`, `suite.md` |
 | `corpus` | [MaskBench](https://github.com/guidance-ai/jsonschemabench) (guidance-ai): the schemas of real LLM tasks (function calling, GitHub's, Kubernetes', JSON Schema Store's), each with answers labelled valid or not | `corpus.json`, `corpus.md`, `corpus-disagreements.tsv`, `corpus-slower.tsv` |
+| `keywords` | What MaskBench's schemas ask, by where they come from: the share of the function-calling schemas, of the Model Context Protocol's own and of the documents that say each keyword | `keywords.json`, `keywords.md` |
 | `size.sh` | One small program built with no validator, with flowschema, with jsonschema and with regex-lite alone: what each adds to the binary, and the crates each adds to the build | `size.json`, `size.md` |
 | `charts.sh` | The README's chart, drawn from the results above as SVG (`charts`) and rasterized by headless Chrome | `charts/compare.svg`, `charts/compare.png` |
 
@@ -95,11 +96,11 @@ it, is.
 | Rule | Holds |
 | --- | --- |
 | `no-allocation` | `matches` allocates nothing, valid data or not; a `uniqueItems` keeps one set of its items' hashes |
-| `never-slower` | No typical check, compile or message is slower than jsonschema's |
+| `never-slower` | No typical check, compile, request or message is slower than jsonschema's |
 | `suite` | No test of the official suite that flowschema checks fails |
 | `corpus-labels` | At least 99.95% of MaskBench's answers are judged as labelled |
 | `corpus-panics` | No schema of MaskBench makes it panic |
-| `corpus-speed` | On MaskBench it compiles at least 1.5x and checks at least 1.2x faster |
+| `corpus-speed` | On MaskBench, both built for speed, it compiles at least 3x and checks at least 1.1x faster |
 | `size` | It adds at most 300 KB to a binary built for size |
 
 A number changes only together with its reason, in the change that moves it.

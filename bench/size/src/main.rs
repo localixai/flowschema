@@ -11,7 +11,7 @@ fn main() {
     let input: serde_json::Value = serde_json::from_str(&text).unwrap_or_default();
     let (schema, data) = (&input["schema"], &input["data"]);
     #[cfg(feature = "flowschema")]
-    let matches = flowschema::Schema::new(schema.clone()).matches(data);
+    let matches = flowschema::Schema::new(&schema.clone()).matches(data);
     #[cfg(feature = "jsonschema")]
     let matches = jsonschema::options()
         .should_validate_formats(true)

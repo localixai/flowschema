@@ -13,8 +13,8 @@ pub(crate) fn same_text(a: &str, b: &str) -> bool {
     same_bytes(a.as_bytes(), b.as_bytes())
 }
 
-/// Whether two byte strings are the same, inline and with no loop up to 16 bytes: the length,
-/// then two loads that overlap and cover every byte (the first and last four, or eight). A
+/// Whether two byte strings are the same, inline and with no loop up to 32 bytes: the length,
+/// then two loads that overlap and cover every byte (the first and last 4, 8 or 16). A
 /// field's name and an `enum`'s option are short, and a call to the system's `memcmp` for each
 /// costs more than the comparison.
 #[inline(always)]
@@ -33,6 +33,10 @@ pub(crate) fn same_bytes(a: &[u8], b: &[u8]) -> bool {
         8..=16 => {
             a.first_chunk::<8>() == b.first_chunk::<8>()
                 && a.last_chunk::<8>() == b.last_chunk::<8>()
+        }
+        17..=32 => {
+            a.first_chunk::<16>() == b.first_chunk::<16>()
+                && a.last_chunk::<16>() == b.last_chunk::<16>()
         }
         _ => a == b,
     }

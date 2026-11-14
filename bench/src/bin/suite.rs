@@ -103,7 +103,7 @@ fn main() {
                         .or_insert_with(|| Value::String(meta.into()));
                 }
                 let compiled = catch_unwind(AssertUnwindSafe(|| {
-                    Schema::with_documents(schema.clone(), &documents)
+                    Schema::with_documents(&schema.clone(), &documents)
                 }));
                 let Ok(ours) = compiled else {
                     failures.push(format!(

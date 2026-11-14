@@ -34,6 +34,12 @@ fn common_leaves_are_found_and_the_rest_are_walked() {
             Leaf::Walked,
         ),
         (json!({"type": "string", "minimum": 1}), Leaf::Walked),
+        (json!({"const": "read"}), Leaf::Const),
+        (json!({"type": "string", "const": "read"}), Leaf::Const),
+        (json!({"const": null}), Leaf::Const),
+        (json!({"const": 1}), Leaf::Walked),
+        (json!({"type": "integer", "const": "read"}), Leaf::Walked),
+        (json!({"const": "read", "enum": ["read"]}), Leaf::Walked),
     ];
     for (schema, wanted) in cases {
         assert_eq!(leaf(&schema), Some(wanted), "{schema}");
@@ -75,11 +81,19 @@ fn a_leaf_judges_as_its_rules_do() {
             vec![json!("aa"), json!("ab"), json!("a@b.c"), json!(1)],
         ),
         (json!({"format": "uuid"}), vec![json!("x"), json!(1)]),
+        (
+            json!({"const": "read"}),
+            vec![json!("read"), json!("write"), json!(1), json!(null)],
+        ),
+        (
+            json!({"const": true}),
+            vec![json!(true), json!(false), json!("true"), json!(1)],
+        ),
     ];
     for (schema, values) in cases {
         // In an object, so the walk settles each field where it stands.
-        let wrapped = Schema::new(json!({"properties": {"x": schema}}));
-        let alone = Schema::new(json!({"allOf": [schema]}));
+        let wrapped = Schema::new(&json!({"properties": {"x": schema}}));
+        let alone = Schema::new(&json!({"allOf": [schema]}));
         for value in values {
             let data = json!({"x": value});
             assert_eq!(wrapped.matches(&data), alone.matches(&value), "{data}");

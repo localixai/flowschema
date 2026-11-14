@@ -8,6 +8,7 @@ use std::slice;
 use super::class::Class;
 use super::parse::Node;
 use super::shape::{Branch, nullable};
+use crate::text::same_bytes;
 
 /// A pattern checked without an automaton.
 pub(super) enum Simple {
@@ -117,10 +118,14 @@ impl Simple {
 
 impl Word {
     fn is_match(&self, text: &str) -> bool {
+        // Compared inline: a word is short, and a call to `memcmp` costs more than it does.
+        let (bytes, word) = (text.as_bytes(), self.text.as_bytes());
         match (self.start, self.end) {
-            (true, true) => text == self.text,
-            (true, false) => text.starts_with(&self.text),
-            (false, true) => text.ends_with(&self.text),
+            (true, true) => same_bytes(bytes, word),
+            (true, false) => (bytes.get(..word.len())).is_some_and(|head| same_bytes(head, word)),
+            (false, true) => (bytes.len().checked_sub(word.len()))
+                .and_then(|from| bytes.get(from..))
+                .is_some_and(|tail| same_bytes(tail, word)),
             (false, false) => text.contains(&self.text),
         }
     }

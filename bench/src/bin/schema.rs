@@ -9,7 +9,7 @@ fn main() {
     let path = std::env::args().nth(1).expect("a corpus file");
     let text = std::fs::read_to_string(&path).expect("a readable file");
     let file: Value = serde_json::from_str(&text).expect("JSON");
-    let ours = Schema::new(file["schema"].clone());
+    let ours = Schema::new(&file["schema"].clone());
     let theirs = reference(&file["schema"]).expect("a schema jsonschema takes");
     for test in file["tests"].as_array().into_iter().flatten() {
         let answer = &test["data"];

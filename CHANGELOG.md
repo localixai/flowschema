@@ -2,20 +2,28 @@
 
 ## Unreleased
 
+- **`Schema::new` and `Schema::with_documents` take the schema by reference** (`&Value`) and keep
+  nothing of it: a schema that comes with a request is compiled where it is, with no copy.
+  `Schema::json` is gone; the document stays the caller's.
 - A schema compiles close to three times faster: every keyword of a schema object is read in one
   pass over its fields, the reference index is built only for a schema that has a `$ref`, a
   leaf that asks only for a type (`{"type": "string", "description": "…"}`, most of an agent's)
-  is held with no rules allocated, and `type`'s names and `required`'s fields are kept without a
-  string of their own. Every verdict and message is unchanged.
-- Checks are faster where an agent's answers spend them: a field that is a common leaf (a type
-  alone, an `enum` of strings, an integer between bounds, a string of a length) is settled where
-  it stands, with no walk of its rules; an `enum`'s strings, a field's name and a tag's value are
-  compared inline, with no call to `memcmp`; a field of a small data object is found by walking
-  it.
+  is held with no rules allocated, a schema that says nothing (`{}`) is `true`, and `type`'s
+  names and `required`'s fields are kept without a string of their own.
+- Checks are faster where an agent's answers spend them. An object held to `properties`,
+  `required` and `additionalProperties` alone is read in one pass over its fields in the order
+  of their names, nothing looked up. A field that is a common leaf (a type alone, an `enum` of
+  strings, a `const`, an integer between bounds, a string of a length, a pattern or a format) is
+  settled where it stands, with no walk of its rules, through a `$ref` too. A union picks its
+  branch by its tag with no iterator in between. An `enum`'s strings, a field's name and a
+  tag's value are compared inline, with no call to `memcmp`.
+- Every verdict and message is unchanged: the official suite, MaskBench and the quick loop's
+  fingerprint say so.
 - `bench/quick/`: the loop a change is measured in first, in instructions, cycles and
   allocations, the same on every run, with a fingerprint of every verdict and message;
   `bench/profile.sh` says where the time goes. The benchmarks are built for speed
-  (`opt-level = 3`), as `cargo build --release` builds; the size is still measured built for size.
+  (`opt-level = 3`), as `cargo build --release` builds; the size is still measured built for
+  size. They now time a request too: a schema compiled and one answer checked.
 
 ## 0.1.0
 

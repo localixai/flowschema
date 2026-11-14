@@ -3,9 +3,10 @@
 //! `results/charts/compare.svg`, which `charts.sh` rasterizes at twice its size into
 //! `compare.png`: one light card, the same on a light page, a dark one and anywhere it is reposted.
 //!
-//! Three sections, so a time is never read against a size: typical checks, MaskBench's real
-//! schemas (their times and how often each validator is wrong), and what a program takes on. Each panel is scaled to its own longest bar, and the
-//! number beside a bar is the measurement.
+//! Four sections, so a time is never read against a size: a request (its schema compiled and its
+//! answer checked), checks once compiled, MaskBench's real schemas (their times and how often
+//! each validator is wrong), and what a program takes on. Each panel is scaled to its own longest
+//! bar, and the number beside a bar is the measurement.
 
 use flowschema_bench::{results, shown, thousands};
 use serde_json::Value;
@@ -75,16 +76,15 @@ fn number(value: &Value, path: &[&str]) -> f64 {
         .unwrap_or_else(|| panic!("no number at {path:?}"))
 }
 
-/// A row of micro.json by its name.
-fn check<'a>(micro: &'a Value, name: &str) -> &'a Value {
-    (micro["checks"].as_array().into_iter().flatten())
-        .chain(micro["compiled"].as_array().into_iter().flatten())
+/// A row of one of micro.json's tables (`checks`, `compiled`, `requests`) by its name.
+fn row<'a>(micro: &'a Value, table: &str, name: &str) -> &'a Value {
+    (micro[table].as_array().into_iter().flatten())
         .find(|row| row["name"] == name)
-        .unwrap_or_else(|| panic!("micro.json has no row {name:?}"))
+        .unwrap_or_else(|| panic!("micro.json has no row {name:?} in {table}"))
 }
 
-fn timed(micro: &Value, name: &str, title: &str, note: &str) -> Panel {
-    let row = check(micro, name);
+fn timed(micro: &Value, table: &str, name: &str, title: &str, note: &str) -> Panel {
+    let row = row(micro, table, name);
     Panel {
         title: title.into(),
         note: note.into(),
@@ -100,44 +100,78 @@ fn sections() -> Vec<Section> {
     let micro = read("micro.json");
     let corpus = read("corpus.json");
     let size = read("size.json");
-    let tree = check(&micro, "tree of 511 nodes by `$ref`");
+    let tree = row(&micro, "checks", "tree of 511 nodes by `$ref`");
     vec![
         Section {
-            title: "Typical checks",
+            title: "A request",
+            note: "a schema that comes with the request, compiled, and one answer checked · \
+                   shorter is better",
+            panels: vec![
+                timed(
+                    &micro,
+                    "requests",
+                    "review verdict",
+                    "A structured answer",
+                    "its schema compiled, the answer checked",
+                ),
+                timed(
+                    &micro,
+                    "requests",
+                    "one tool call",
+                    "A tool call",
+                    "the tool's schema compiled, the call checked",
+                ),
+                timed(
+                    &micro,
+                    "compiled",
+                    "tool calls",
+                    "Eight tools",
+                    "a union of 8 tools, compiled",
+                ),
+            ],
+        },
+        Section {
+            title: "Checks, once compiled",
             note: "one check of what a model wrote, the median of 31 rounds · shorter is better",
             panels: vec![
                 timed(
                     &micro,
+                    "checks",
                     "review verdict, valid",
                     "A structured answer",
                     "a review's verdict, valid",
                 ),
                 timed(
                     &micro,
+                    "checks",
                     "review verdict, invalid",
                     "The same, invalid",
                     "stops at the first failure",
                 ),
                 timed(
                     &micro,
+                    "checks",
                     "64 tool calls, `oneOf` of 8",
                     "Tool calls",
                     "64 calls, a union of 8 tools",
                 ),
                 timed(
                     &micro,
+                    "checks",
                     "1,000 rows",
                     "A table",
                     "1,000 rows an answer lists",
                 ),
                 timed(
                     &micro,
+                    "checks",
                     "500 objects × 20 fields",
                     "Wide objects",
                     "500 objects of 20 fields each",
                 ),
                 timed(
                     &micro,
+                    "checks",
                     "tree of 511 nodes by `$ref`",
                     "A recursive schema",
                     "a tree of 511 nodes by $ref",

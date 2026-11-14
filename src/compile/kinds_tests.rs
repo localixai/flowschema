@@ -79,17 +79,17 @@ fn an_array_of_typed_items_with_a_count_is_planned_and_judged_as_walked() {
         plain(&matrix),
         Some((0, u64::MAX, Items::Plain(_)))
     ));
-    let rows = crate::Schema::new(matrix);
+    let rows = crate::Schema::new(&matrix);
     assert!(rows.matches(&json!([[1, 2], [3, 4.5]])));
     assert!(!rows.matches(&json!([[1, 2], [3]])));
     let looped = json!({"$defs": {"n": {"type": "array", "items": {"$ref": "#/$defs/n"}}}, "$ref": "#/$defs/n"});
-    assert!(crate::Schema::new(looped).matches(&json!([[], [[]]])));
+    assert!(crate::Schema::new(&looped).matches(&json!([[], [[]]])));
     assert_eq!(plain(&json!({"type": "array", "uniqueItems": true})), None);
     assert_eq!(
         plain(&json!({"items": {"type": "string", "minLength": 1}})),
         None
     );
-    let schema = crate::Schema::new(pair);
+    let schema = crate::Schema::new(&pair);
     assert!(schema.matches(&json!([1, 2.5])));
     assert!(!schema.matches(&json!([1])));
     assert!(!schema.matches(&json!([1, "a"])));

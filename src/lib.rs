@@ -30,6 +30,8 @@ mod text;
 mod uri;
 mod validate;
 
+use std::sync::OnceLock;
+
 use serde_json::Value;
 
 use node::Node;
@@ -37,9 +39,9 @@ use pattern::Pattern;
 use report::{At, Report};
 use validate::Walk;
 
-/// A JSON Schema, as given: an object, or `true` or `false`.
+/// A JSON Schema compiled: an object, or `true` or `false`, read once and ready to check data
+/// against. It keeps nothing of the document it was read from, which stays the caller's.
 pub struct Schema {
-    json: Value,
     /// The schema compiled, its root the first node.
     nodes: Vec<Node>,
     /// Its patterns: each source, and its matcher where it is checked here.
@@ -48,19 +50,26 @@ pub struct Schema {
     notes: Vec<&'static str>,
     /// Draft 4's integers.
     strict: bool,
+    /// Whether a data object's fields come in the order of their names (`sorted_maps`).
+    sorted: bool,
+    /// Whether the schema is one leaf, settled with no walk (`Walk::leaf`): asked of every
+    /// check only where it can be.
+    leaf: bool,
 }
 
 impl Schema {
-    /// `json` compiled, its draft read from `$schema` (2020-12 when it names none). It never
-    /// fails: what it asks that is not checked here is named by [`Schema::unchecked`].
-    pub fn new(json: Value) -> Self {
+    /// `json` compiled, its draft read from `$schema` (2020-12 when it names none). The
+    /// document is read where it is, and not copied: a schema that comes with a request is
+    /// compiled from the request. It never fails: what it asks that is not checked here is
+    /// named by [`Schema::unchecked`].
+    pub fn new(json: &Value) -> Self {
         Self::with_documents(json, &[])
     }
 
     /// A schema whose `$ref`s may land in other documents, each given with its URI
     /// (`https://example.com/defs.json`): no network is ever reached.
-    pub fn with_documents(json: Value, documents: &[(String, Value)]) -> Self {
-        let compiled = compile::compile(&json, documents);
+    pub fn with_documents(json: &Value, documents: &[(String, Value)]) -> Self {
+        let compiled = compile::compile(json, documents);
         let mut notes = compiled.notes;
         let patterns: Vec<(Box<str>, Option<Pattern>)> = (compiled.patterns.into_iter())
             .map(|source| {
@@ -71,18 +80,18 @@ impl Schema {
         if patterns.iter().any(|(_, matcher)| matcher.is_none()) {
             notes.push("pattern");
         }
+        let leaf = match compiled.nodes.first() {
+            Some(Node::Rules(rules)) => rules.leaf != node::Leaf::Walked,
+            Some(Node::Any | Node::Never | Node::Types(..)) | None => false,
+        };
         Self {
-            json,
+            leaf,
             nodes: compiled.nodes,
             patterns,
             notes,
             strict: compiled.draft.strict_integers(),
+            sorted: sorted_maps(),
         }
-    }
-
-    /// The schema as given.
-    pub fn json(&self) -> &Value {
-        &self.json
     }
 
     fn walk(&self) -> Walk<'_> {
@@ -90,6 +99,7 @@ impl Schema {
             nodes: &self.nodes,
             patterns: &self.patterns,
             strict: self.strict,
+            sorted: self.sorted,
         }
     }
 
@@ -97,7 +107,10 @@ impl Schema {
     pub fn matches(&self, data: &Value) -> bool {
         // A schema that is one leaf is settled where it stands, as a field's value is.
         let walk = self.walk();
-        walk.leaf_holds(0, data) || walk.node(0, data, &At::Root, Report::quiet(), 0)
+        match self.leaf.then(|| walk.leaf(0, data)).flatten() {
+            Some(holds) => holds,
+            None => walk.node(0, data, &At::Root, Report::quiet(), 0),
+        }
     }
 
     /// Every way `data` does not match, the first twenty, its places written from `data`
@@ -117,6 +130,19 @@ impl Schema {
     pub fn unchecked(&self) -> Vec<&'static str> {
         self.notes.clone()
     }
+}
+
+/// Whether a data object's fields come in the order of their names: so with serde_json's own
+/// map, and not where a crate of the program turns its `preserve_order` feature on. A map is
+/// asked once, as a schema compiles: no program has both, and a check allocates nothing.
+fn sorted_maps() -> bool {
+    static SORTED: OnceLock<bool> = OnceLock::new();
+    *SORTED.get_or_init(|| {
+        let mut map = serde_json::Map::new();
+        map.insert("b".to_string(), Value::Null);
+        map.insert("a".to_string(), Value::Null);
+        map.keys().next().is_some_and(|first| first == "a")
+    })
 }
 
 #[cfg(test)]

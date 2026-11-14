@@ -2,7 +2,7 @@
 
 <p align="center">
   <strong>JSON Schema for agents: tool calls and structured output, checked as models write them</strong><br>
-  Drafts 4 to 2020-12 · 2 dependencies · 293 KB · no allocation on a check · compiles 3.74× faster than jsonschema
+  Drafts 4 to 2020-12 · 2 dependencies · 293 KB · no allocation on a check · a request checked 8.0× faster than jsonschema
 </p>
 
 <p align="center">
@@ -21,8 +21,8 @@
 An agent meets JSON Schema twice: in a tool's parameters, which every call the model writes must
 fit before the tool runs, and in the shape of a structured answer. Both schemas arrive at run
 time, the data comes from a model, and what the program does with a failure is tell the model
-what to fix. flowschema compiles a schema once, checks every call and answer against it with no
-allocation, and says what is wrong in words a model can mend its answer from:
+what to fix. flowschema compiles a schema in about a microsecond, checks a call or an answer
+against it with no allocation, and says what is wrong in words a model can mend its answer from:
 
 ```text
 data.issues[0].line must be >= 1 (is 0)
@@ -39,7 +39,7 @@ flowschema = { git = "https://github.com/localixai/flowschema", tag = "v0.1.0" }
 use flowschema::Schema;
 use serde_json::json;
 
-let schema = Schema::new(json!({
+let schema = Schema::new(&json!({
     "type": "object",
     "required": ["verdict"],
     "properties": {"verdict": {"enum": ["approve", "request_changes"]}}
@@ -55,13 +55,16 @@ assert!(schema.unchecked().is_empty());
 
 ## Why
 
-- **Fast to compile.** An agent's schemas arrive at run time, often with every request. On
-  MaskBench's 11,306 schemas of real LLM tasks flowschema compiles 3.74× faster than the
-  `jsonschema` crate (133.0 ms against 497.6 ms); a review's verdict compiles in 1.13 µs,
-  where `jsonschema` takes 6.51 µs.
-- **About as fast to check.** A review's verdict is checked in 160 ns and a union of 64 tool
-  calls in 3.50 µs, beside `jsonschema`'s 166 ns and 3.85 µs; every answer of the 9,779
-  schemas both check whole takes flowschema 5.03 ms and `jsonschema` 4.48 ms.
+- **Made for a schema that comes with the request.** An agent's schemas arrive at run time,
+  often one with every request, so what a request costs is its schema compiled and one answer
+  checked. For a tool call that is 483 ns, where the `jsonschema` crate takes 3.88 µs (8.0×);
+  for a structured answer, 1.18 µs against 6.31 µs (5.3×). The schema is read where it is and
+  not copied, so there is no cache to keep.
+- **Fast to compile, fast to check.** On MaskBench's 11,306 schemas of real LLM tasks
+  flowschema compiles 3.78× faster than `jsonschema` (123.4 ms against 466.9 ms) and checks
+  every answer of the 9,779 both check whole 1.25× faster (3.41 ms against 4.25 ms), both built
+  for speed. Once compiled, a review's verdict is checked in 115 ns and a union of 64 tool calls
+  in 2.05 µs, beside 162 ns and 2.70 µs; no typical check, compile, request or message is slower.
 - **No allocation.** A check allocates nothing, valid data or not; the benchmarks count every
   allocation and fail a run that makes one.
 - **Messages a model can act on.** Each says where the value is, the rule it breaks and what the
@@ -77,7 +80,7 @@ assert!(schema.unchecked().is_empty());
   its string, a `$ref` loop is cut, and there is no `unsafe` ([SECURITY.md](SECURITY.md)).
 
 <p align="center">
-  <a href="docs/comparison.md"><img alt="flowschema beside the jsonschema crate: the time of six typical checks of what a model wrote, compiling and checking MaskBench's real LLM schemas, wrong verdicts, the size added to a binary, the crates added and the allocations of a check" src="bench/results/charts/compare.png" width="878"></a>
+  <a href="docs/comparison.md"><img alt="flowschema beside the jsonschema crate: what a request costs with its schema compiled and one answer checked, six typical checks once compiled, compiling and checking MaskBench's real LLM schemas, wrong verdicts, the size added to a binary, the crates added and the allocations of a check" src="bench/results/charts/compare.png" width="878"></a>
 </p>
 
 Every figure, its method and where `jsonschema` suits better are in
@@ -85,8 +88,8 @@ Every figure, its method and where `jsonschema` suits better are in
 
 ## Documentation
 
-[In an agent](docs/agents.md): tool calls, structured answers, what is not checked, what comes
-next · [API](docs/api.md) · [conformance](docs/conformance.md): what is checked, the official
+[In an agent](docs/agents.md): tool calls, structured answers, a schema with every request,
+what agents' schemas ask and what a provider already holds, what comes next · [API](docs/api.md) · [conformance](docs/conformance.md): what is checked, the official
 suite, real LLM tasks · [comparison](docs/comparison.md): every benchmark, how it is fast ·
 [releases](CHANGELOG.md)
 

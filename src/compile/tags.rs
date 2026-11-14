@@ -4,7 +4,7 @@
 //! only branches that can match: a branch that requires it and does not allow the value fails
 //! whatever else it asks, as its keywords all must hold. The walk then tries those alone.
 
-use crate::text::{field, order};
+use crate::text::{field, order, same_text};
 use serde_json::Value;
 
 use super::each;
@@ -31,11 +31,17 @@ impl Tag {
     pub(crate) fn picks(&self, value: &Value) -> Option<(&[u32], &[u32])> {
         let fields = value.as_object()?;
         let tagged: &[u32] = match field(fields, &self.name) {
-            Some(Value::String(text)) => (self.by_value)
-                .binary_search_by(|(option, _)| order(option.as_bytes(), text.as_bytes()))
-                .ok()
-                .and_then(|at| self.by_value.get(at))
-                .map_or(&[], |(_, branches)| branches),
+            Some(Value::String(text)) => {
+                let found = match self.by_value.len() {
+                    // A few values are walked to, each told apart by its length first.
+                    0..=8 => (self.by_value.iter()).find(|(option, _)| same_text(option, text)),
+                    _ => (self.by_value)
+                        .binary_search_by(|(option, _)| order(option.as_bytes(), text.as_bytes()))
+                        .ok()
+                        .and_then(|at| self.by_value.get(at)),
+                };
+                found.map_or(&[], |(_, branches)| branches)
+            }
             // Each tagged branch requires the field and allows only strings.
             _ => &[],
         };

@@ -68,8 +68,9 @@ fn source(file: &str) -> &str {
     }
 }
 
-/// The sample, as (agents', documents'): every `EVERY`th file of each source in name order.
-fn sample() -> (Vec<Sampled>, Vec<Sampled>) {
+/// The sample, as (agents', documents', the protocol's): every `EVERY`th file of each source in
+/// name order, and every schema of the Model Context Protocol besides.
+fn sample() -> (Vec<Sampled>, Vec<Sampled>, Vec<Sampled>) {
     let dir = data("jsonschemabench/maskbench/data");
     let mut names: Vec<String> = (std::fs::read_dir(&dir)
         .expect("run fetch.sh first")
@@ -84,10 +85,16 @@ fn sample() -> (Vec<Sampled>, Vec<Sampled>) {
             .or_default()
             .push(name);
     }
-    let (mut agents, mut documents) = (vec![], vec![]);
+    let (mut agents, mut documents, mut protocol) = (vec![], vec![], vec![]);
     for (source, files) in by_source {
         let agent = AGENTS.iter().any(|a| source.starts_with(a));
-        for file in files.iter().step_by(EVERY) {
+        // Every schema of the Model Context Protocol's own, a set apart: what a tool server
+        // and its client exchange, references and unions throughout.
+        let whole = source.starts_with("MCPspec");
+        for (at, file) in files.iter().enumerate() {
+            if !whole && at % EVERY != 0 {
+                continue;
+            }
             let text = std::fs::read_to_string(dir.join(file)).expect("a corpus file");
             let Ok(document) = serde_json::from_str::<Value>(&text) else {
                 continue;
@@ -99,13 +106,22 @@ fn sample() -> (Vec<Sampled>, Vec<Sampled>) {
                 schema: document["schema"].clone(),
                 answers,
             };
+            if whole {
+                protocol.push(Sampled {
+                    schema: sampled.schema.clone(),
+                    answers: sampled.answers.clone(),
+                });
+            }
+            if at % EVERY != 0 {
+                continue;
+            }
             match agent {
                 true => agents.push(sampled),
                 false => documents.push(sampled),
             }
         }
     }
-    (agents, documents)
+    (agents, documents, protocol)
 }
 
 /// FNV-1a over everything the library answered: verdicts, messages, what it left unchecked.
@@ -159,7 +175,7 @@ fn size(value: &Value) -> usize {
 
 fn checks(rows: &mut Vec<Row>, print: &mut Fingerprint) {
     for (name, schema, data) in fixtures::checks() {
-        let compiled = Schema::new(schema);
+        let compiled = Schema::new(&schema);
         print.answer(&compiled, &data);
         let calls = if size(&data) > 100 { 64 } else { 20_000 };
         rows.push(Row {
@@ -179,12 +195,18 @@ fn checks(rows: &mut Vec<Row>, print: &mut Fingerprint) {
 
 fn compiles(rows: &mut Vec<Row>) {
     for (name, schema) in fixtures::compiled() {
-        let copy = cost_per(500, 11, || schema.clone());
-        let copied = allocated(|| schema.clone());
         rows.push(Row {
             name: format!("compile  {name}"),
-            cost: cost_per(500, 11, || Schema::new(schema.clone())) - copy,
-            allocations: allocated(|| Schema::new(schema.clone())) - copied,
+            cost: cost_per(500, 11, || Schema::new(&schema)),
+            allocations: allocated(|| Schema::new(&schema)),
+        });
+    }
+    // What a request costs: its schema compiled and its one answer checked.
+    for (name, schema, answer) in fixtures::requests() {
+        rows.push(Row {
+            name: format!("request  {name}"),
+            cost: cost_per(500, 11, || Schema::new(&schema).matches(&answer)),
+            allocations: allocated(|| Schema::new(&schema).matches(&answer)),
         });
     }
 }
@@ -192,21 +214,16 @@ fn compiles(rows: &mut Vec<Row>) {
 fn corpus(rows: &mut Vec<Row>, print: &mut Fingerprint, label: &str, set: &[Sampled]) {
     let compile_all = || {
         for one in set {
-            black_box(Schema::new(one.schema.clone()));
-        }
-    };
-    let copy_all = || {
-        for one in set {
-            black_box(one.schema.clone());
+            black_box(Schema::new(&one.schema));
         }
     };
     rows.push(Row {
         name: format!("{label} compile {} schemas", set.len()),
-        cost: cost_per(1, 5, compile_all) - cost_per(1, 5, copy_all),
-        allocations: allocated(compile_all) - allocated(copy_all),
+        cost: cost_per(1, 5, compile_all),
+        allocations: allocated(compile_all),
     });
     let compiled: Vec<(Schema, &Vec<Value>)> = (set.iter())
-        .map(|one| (Schema::new(one.schema.clone()), &one.answers))
+        .map(|one| (Schema::new(&one.schema), &one.answers))
         .collect();
     let mut answers = 0;
     let mut invalid: Vec<(&Schema, &Value)> = vec![];
@@ -277,7 +294,7 @@ fn spin(what: &str, set: &[Sampled], seconds: u64) {
             eprintln!("no fixture {wanted:?}");
             return;
         };
-        let schema = Schema::new(schema);
+        let schema = Schema::new(&schema);
         let until = Instant::now() + std::time::Duration::from_secs(seconds);
         while Instant::now() < until {
             for _ in 0..1_000 {
@@ -286,14 +303,14 @@ fn spin(what: &str, set: &[Sampled], seconds: u64) {
         }
         return;
     }
-    let compiled: Vec<(Schema, &Vec<Value>)> = (set.iter())
-        .map(|one| (Schema::new(one.schema.clone()), &one.answers))
+    let compiled: Vec<(&Value, Schema, &Vec<Value>)> = (set.iter())
+        .map(|one| (&one.schema, Schema::new(&one.schema), &one.answers))
         .collect();
     let until = Instant::now() + std::time::Duration::from_secs(seconds);
     while Instant::now() < until {
-        for (schema, answers) in &compiled {
+        for (json, schema, answers) in &compiled {
             match what {
-                "compile" => drop(black_box(Schema::new(schema.json().clone()))),
+                "compile" => drop(black_box(Schema::new(json))),
                 "check" => answers.iter().for_each(|a| {
                     black_box(schema.matches(a));
                 }),
@@ -309,12 +326,13 @@ fn main() {
     let started = Instant::now();
     let save = std::env::args().any(|arg| arg == "--save" || arg == "--save-as");
     fast_cores();
-    let (agents, documents) = sample();
+    let (agents, documents, protocol) = sample();
     let args: Vec<String> = std::env::args().collect();
     if let Some(at) = args.iter().position(|arg| arg == "--spin") {
         let what = args.get(at + 1).map_or("compile", String::as_str);
         let set = match args.get(at + 2).map(String::as_str) {
             Some("documents") => &documents,
+            Some("protocol") => &protocol,
             Some(_) | None => &agents,
         };
         return spin(what, set, 6);
@@ -325,6 +343,7 @@ fn main() {
     compiles(&mut rows);
     corpus(&mut rows, &mut print, "agents   ", &agents);
     corpus(&mut rows, &mut print, "documents", &documents);
+    corpus(&mut rows, &mut print, "protocol ", &protocol);
     let fingerprint = format!("{:016x}", print.0);
     let against = option("--against").unwrap_or_else(|| "base".into());
     let saved: Value = (std::fs::read_to_string(saved_path(&against)).ok())
@@ -358,8 +377,10 @@ fn main() {
             ("checks", "check "),
             ("messages", "messages"),
             ("compiles", "compile "),
+            ("requests", "request "),
             ("agents", "agents"),
             ("documents", "documents"),
+            ("protocol", "protocol"),
         ]
         .iter()
         .filter_map(|(label, prefix)| {

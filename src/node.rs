@@ -159,6 +159,9 @@ pub(crate) enum Leaf {
     Walked,
     /// An `enum` of strings alone, with a `type` that allows strings or none.
     Strings,
+    /// A `const` alone that is a string, a boolean or null, with a `type` that allows it or
+    /// none: the field a union of tool calls is told apart by.
+    Const,
     /// Integers within bounds that are integers themselves (`limits`), with a `type` that
     /// allows integers or none.
     Range,
@@ -205,6 +208,8 @@ impl Rules {
             (objects.min_fields, objects.max_fields) = (None, None);
             objects.dependent = Box::default();
             objects.closing = !objects.dependent_schemas.is_empty();
+            objects.simple =
+                objects.names.is_none() && objects.patterns.is_empty() && !objects.closing;
         }
         self.has = self.groups();
     }
@@ -296,6 +301,9 @@ impl Sign {
 pub(crate) struct Arrays {
     pub(crate) prefix: Box<[Id]>,
     pub(crate) rest: Option<Id>,
+    /// Whether `rest` is a leaf the walk settles where it stands (`Leaf`), told here as a
+    /// property is told it (`compile/flatten.rs`).
+    pub(crate) rest_leaf: bool,
     pub(crate) min_items: Option<u64>,
     pub(crate) max_items: Option<u64>,
     pub(crate) unique: bool,
@@ -309,6 +317,13 @@ pub(crate) struct Property {
     pub(crate) name: Box<str>,
     pub(crate) id: Id,
     pub(crate) bit: u64,
+    /// Whether its node is a leaf the walk settles where it stands (`Leaf`): told here, where
+    /// the walk already reads, so a field that is none costs no call to ask.
+    pub(crate) leaf: bool,
+    /// The types its node asks, where it is a node of types alone (every type for one that
+    /// allows anything); none where it asks more. Most fields are settled by it, with no read
+    /// of their node.
+    pub(crate) types: u8,
 }
 
 /// A field `required` names: most are named by `properties` too, and are their place there, so
@@ -341,6 +356,10 @@ pub(crate) struct Objects {
     /// Whether any of the counts or the dependencies is said: an object is held to them after
     /// its fields.
     pub(crate) closing: bool,
+    /// Whether it is held to `properties`, `required` and `additionalProperties` alone (no
+    /// `propertyNames`, no `patternProperties`, nothing `closing`): most objects, which the
+    /// quick walk reads in one pass (`Walk::in_order`).
+    pub(crate) simple: bool,
 }
 
 impl Objects {

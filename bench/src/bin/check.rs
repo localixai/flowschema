@@ -38,6 +38,7 @@ fn judge(rule: &Value) -> Option<(bool, String)> {
             let min = number(rule, &["minRatio"]);
             let rows = (micro["checks"].as_array()?.iter())
                 .chain(micro["compiled"].as_array()?.iter())
+                .chain(micro["requests"].as_array()?.iter())
                 .chain(std::iter::once(&micro["messages"]).filter(|row| !row.is_null()));
             let slower: Vec<String> = rows
                 .filter(|row| number(row, &["ratio"]) < min)

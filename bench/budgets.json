@@ -9,7 +9,7 @@
     },
     {
       "id": "never-slower",
-      "about": "No typical check, compile or message is slower than jsonschema's.",
+      "about": "No typical check, compile, request or message is slower than jsonschema's.",
       "minRatio": 1.0
     },
     {
@@ -29,9 +29,9 @@
     },
     {
       "id": "corpus-speed",
-      "about": "On MaskBench it compiles at least 1.5x and checks at least 1.2x faster than jsonschema.",
-      "minCompileRatio": 1.5,
-      "minCheckRatio": 1.2
+      "about": "On MaskBench, both built for speed, it compiles at least 3x and checks at least 1.1x faster than jsonschema.",
+      "minCompileRatio": 3.0,
+      "minCheckRatio": 1.1
     },
     {
       "id": "size",

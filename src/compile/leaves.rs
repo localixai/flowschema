@@ -3,12 +3,13 @@
 //! of types alone, they are most of an agent's fields, so a valid one costs a comparison, not a
 //! walk.
 
-use crate::node::{HAS_KIND, HAS_NUMBER, HAS_STRING, INTEGER, Leaf, Rules, STRING};
+use serde_json::Value;
+
+use crate::node::{BOOLEAN, HAS_KIND, HAS_NUMBER, HAS_STRING, INTEGER, Leaf, NULL, Rules, STRING};
 
 /// What `rules` ask, where they are a leaf.
 pub(super) fn leaf(rules: &Rules) -> Leaf {
     let plain = rules.reference.is_none()
-        && rules.constant.is_none()
         && rules.only_types.is_none()
         && rules.unevaluated_fields.is_none()
         && rules.unevaluated_items.is_none();
@@ -16,6 +17,19 @@ pub(super) fn leaf(rules: &Rules) -> Leaf {
     let kind_alone = rules.has & !HAS_KIND == 0;
     if !plain {
         return Leaf::Walked;
+    }
+    if let Some(known) = &rules.constant {
+        // A number is left to the walk: whether `1.0` is the integer `1` is the draft's to say.
+        let kind = match known {
+            Value::String(_) => STRING,
+            Value::Bool(_) => BOOLEAN,
+            Value::Null => NULL,
+            Value::Number(_) | Value::Array(_) | Value::Object(_) => 0,
+        };
+        return match kind_alone && rules.options.is_none() && kind != 0 && allows(kind) {
+            true => Leaf::Const,
+            false => Leaf::Walked,
+        };
     }
     if kind_alone && rules.options.is_some() && rules.option_kinds == STRING && allows(STRING) {
         return Leaf::Strings;

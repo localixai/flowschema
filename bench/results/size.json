@@ -1,6 +1,6 @@
 {
   "baseline": 319296,
-  "flowschema": 300016,
+  "flowschema": 299984,
   "regexLite": 50064,
   "jsonschema": 1929728,
   "crates": { "flowschema": 2, "jsonschema": 57 }

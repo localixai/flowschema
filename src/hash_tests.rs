@@ -49,6 +49,8 @@ fn many_names_are_found_by_hash_and_few_are_not_tabled() {
             name: format!("field_{n}").into(),
             id: n,
             bit: 0,
+            leaf: false,
+            types: 0,
         })
         .collect();
     let table = Names::of(&names).unwrap();

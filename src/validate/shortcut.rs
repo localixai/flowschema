@@ -52,47 +52,121 @@ impl Walk<'_> {
             .is_some_and(|types| self.has_type(types, value))
     }
 
+    /// An item of a list walked against node `id`, its failures said in `r`. A walk that says
+    /// them asks the quick walk first: of a long list that fails, most items hold, and what
+    /// holds is told with nothing written and no place named.
+    #[inline]
+    pub(super) fn said<const F: bool>(
+        &self,
+        id: Id,
+        value: &Value,
+        at: &At<'_>,
+        r: Report<'_, F>,
+    ) -> bool {
+        (F && self.node(id, value, &At::Root, Report::quiet(), 0)) || self.node(id, value, at, r, 0)
+    }
+
     /// Whether node `id` is a leaf that surely holds `value` (`Leaf`), asked of a field's value
     /// where `fits` could not say: out of the walk's way, so its every call does not grow by it.
-    #[inline(never)]
     pub(crate) fn leaf_holds(&self, id: Id, value: &Value) -> bool {
+        self.leaf(id, value) == Some(true)
+    }
+
+    /// What the leaf node `id` says of `value`: that it holds it, that it surely does not (a
+    /// quick walk then fails with nothing walked), or nothing, where the walk must decide (a
+    /// node that is no leaf, a fraction, a string to count by characters).
+    #[inline(never)]
+    pub(crate) fn leaf(&self, id: Id, value: &Value) -> Option<bool> {
         match self.nodes.get(id) {
             Some(Node::Rules(rules)) => self.settles(rules, value),
-            Some(Node::Any | Node::Never | Node::Types(..)) | None => false,
+            Some(Node::Any | Node::Never | Node::Types(..)) | None => None,
         }
     }
 
-    /// Whether the leaf `rules` surely holds `value`; `false` where it must be walked.
+    /// What the leaf `rules` say of `value` (`leaf`).
     #[inline]
-    fn settles(&self, rules: &Rules, value: &Value) -> bool {
+    fn settles(&self, rules: &Rules, value: &Value) -> Option<bool> {
         match rules.leaf {
-            Leaf::Walked => false,
+            Leaf::Walked => None,
+            // A value that is no string is none of the strings.
             Leaf::Strings => {
-                value
-                    .as_str()
-                    .is_some_and(|text| match (&rules.table, &rules.options) {
-                        (Some(table), Some(Value::Array(options))) => table.holds(options, value),
-                        (None, Some(Value::Array(options))) => (options.iter()).any(|option| {
-                            option.as_str().is_some_and(|known| same_text(known, text))
+                Some(
+                    value
+                        .as_str()
+                        .is_some_and(|text| match (&rules.table, &rules.options) {
+                            (Some(table), Some(Value::Array(options))) => {
+                                table.holds_text(options, text)
+                            }
+                            (None, Some(Value::Array(options))) => (options.iter()).any(|option| {
+                                option.as_str().is_some_and(|known| same_text(known, text))
+                            }),
+                            (Some(_) | None, Some(_) | None) => false,
                         }),
-                        (Some(_) | None, Some(_) | None) => false,
-                    })
+                )
             }
-            Leaf::Range => value.as_i64().is_some_and(|n| {
+            Leaf::Const => rules.constant.as_ref().map(|known| {
+                match (known.as_str(), value.as_str()) {
+                    (Some(known), Some(text)) => same_text(known, text),
+                    // A boolean or null: itself alone.
+                    (None, None) => known == value,
+                    (Some(_), None) | (None, Some(_)) => false,
+                }
+            }),
+            // Only an integer written as one is settled: the rest is the draft's to read.
+            Leaf::Range => value.as_i64().map(|n| {
                 (rules.limits.iter())
                     .all(|(limit, sign)| limit.as_i64().is_some_and(|l| sign.holds_whole(n, l)))
             }),
-            Leaf::Text => value.as_str().is_some_and(|text| {
+            Leaf::Text => {
+                let text = value.as_str()?;
                 let bytes = text.len() as u64;
-                rules.max_length.is_none_or(|most| bytes <= most)
-                    && rules.min_length.is_none_or(|least| bytes / 4 >= least)
-                    && rules.pattern.is_none_or(|place| self.matches(place, text))
-                    && rules
-                        .format
-                        .as_ref()
-                        .is_none_or(|(_, check)| check(text.as_bytes()))
-            }),
+                let length = rules.max_length.is_none_or(|most| bytes <= most)
+                    && rules.min_length.is_none_or(|least| bytes / 4 >= least);
+                // A length the count of bytes does not settle is counted by the walk.
+                length.then(|| {
+                    rules.pattern.is_none_or(|place| self.matches(place, text))
+                        && (rules.format.as_ref()).is_none_or(|(_, check)| check(text.as_bytes()))
+                })
+            }
         }
+    }
+
+    /// How many of a union's branches `value` matches, counted up to `most` (one settles an
+    /// `anyOf`, two a `oneOf`): of the branches its tag leaves, or of them all, each tried where
+    /// it stands before it is walked.
+    pub(super) fn matched(
+        &self,
+        branches: &[Id],
+        tag: Option<&Tag>,
+        value: &Value,
+        at: &At<'_>,
+        refs: usize,
+        most: usize,
+    ) -> usize {
+        let mut count = 0;
+        let mut enough = |id: Id| {
+            let holds = self.fits(id, value) || self.node(id, value, at, Report::quiet(), refs);
+            count += usize::from(holds);
+            count >= most
+        };
+        match tag.and_then(|tag| tag.picks(value)) {
+            Some((tagged, untagged)) => {
+                for place in tagged.iter().chain(untagged) {
+                    let id = usize::try_from(*place).ok().and_then(|at| branches.get(at));
+                    if id.is_some_and(|id| enough(*id)) {
+                        break;
+                    }
+                }
+            }
+            None => {
+                for id in branches {
+                    if enough(*id) {
+                        break;
+                    }
+                }
+            }
+        }
+        count
     }
 
     /// Whether `value` matches the array `plan` describes: its type, its count, its items' type.
@@ -156,23 +230,4 @@ impl Walk<'_> {
             Value::Number(_) => kind_of(value, self.strict),
         }
     }
-}
-
-/// The branches of a union `value` can match: those its tag leaves, or all of them.
-pub(super) fn picked<'a>(
-    branches: &'a [Id],
-    tag: Option<&'a Tag>,
-    value: &'a Value,
-) -> impl Iterator<Item = Id> + 'a {
-    let (first, second, all) = match tag.and_then(|tag| tag.picks(value)) {
-        Some((tagged, untagged)) => (tagged, untagged, &[][..]),
-        None => (&[][..], &[][..], branches),
-    };
-    let place = |at: &u32| {
-        usize::try_from(*at)
-            .ok()
-            .and_then(|at| branches.get(at))
-            .copied()
-    };
-    (first.iter().chain(second).filter_map(place)).chain(all.iter().copied())
 }

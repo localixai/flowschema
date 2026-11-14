@@ -33,9 +33,9 @@ fn what_only_some_values_apply_is_worked_out_as_the_data_comes() {
     let looped = json!({"$defs": {"a": {"$ref": "#/$defs/a"}}, "allOf": [{"$ref": "#/$defs/a"}],
         "unevaluatedProperties": false});
     assert_eq!(settled(&looped), (false, false));
-    assert!(!Schema::new(looped).matches(&json!({"x": 1})));
-    assert!(Schema::new(branch).matches(&json!({"x": 1})));
+    assert!(!Schema::new(&looped).matches(&json!({"x": 1})));
+    assert!(Schema::new(&branch).matches(&json!({"x": 1})));
     let named = json!({"allOf": [{"properties": {"a": true}}], "unevaluatedProperties": false});
-    assert!(Schema::new(named.clone()).matches(&json!({"a": 1})));
-    assert!(!Schema::new(named).matches(&json!({"a": 1, "b": 2})));
+    assert!(Schema::new(&named).matches(&json!({"a": 1})));
+    assert!(!Schema::new(&named).matches(&json!({"a": 1, "b": 2})));
 }

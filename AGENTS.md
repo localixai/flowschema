@@ -10,10 +10,13 @@ and it binds an agent as it binds a person. This file says where things are and 
 ## Layout
 
 - `src/`: the library, one idea per file. `lib.rs` is the API (`Schema`); `draft.rs` reads the
-  draft, `compile.rs` and `compile/` build the nodes (`node.rs`), `index.rs` and `uri.rs` resolve
-  references, `validate.rs` and `validate/` walk the data, `format.rs`, `pattern.rs`, `number.rs`
-  and `hash.rs` check what their names say, `report.rs` writes the messages. Each `x.rs` has its
-  tests in `x_tests.rs` beside it.
+  draft; `compile.rs` and `compile/` build the nodes (`node.rs`): `read.rs` reads an object's
+  keywords in one pass, `leaves.rs` finds the leaves a walk settles where it stands, `flatten.rs`
+  names each child where its `$ref` lands; `index.rs` and `uri.rs` resolve references;
+  `validate.rs` and `validate/` walk the data (`objects.rs` the quick walk of an object in the
+  order of its fields); `format.rs`, `pattern.rs`, `number.rs`, `hash.rs` and `text.rs` check
+  what their names say; `report.rs` writes the messages. Each `x.rs` has its tests in
+  `x_tests.rs` beside it.
 - `tests/repo.rs`: the repository's own rules, checked on its files (F3, F4, F10, F12).
 - `bench/`: the benchmarks against the `jsonschema` crate, their budgets (`budgets.json`), and
   the results every published figure comes from (`results/`), the README's chart among them

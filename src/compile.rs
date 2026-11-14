@@ -5,6 +5,7 @@
 
 mod containers;
 mod evaluated;
+mod flatten;
 mod keywords;
 mod kinds;
 mod leaves;
@@ -52,6 +53,7 @@ pub(crate) fn compile(root: &Value, documents: &[(String, Value)]) -> Compiled {
     tags::mark(&mut compiler.nodes);
     kinds::fold(&mut compiler.nodes);
     evaluated::settle(&mut compiler.nodes);
+    flatten::settle(&mut compiler.nodes, !compiler.refs.is_empty());
     Compiled {
         nodes: compiler.nodes,
         patterns: compiler.patterns,
@@ -119,6 +121,8 @@ impl<'j> Compiler<'j> {
                 let alone = (k.only_type()).filter(|_| self.validation);
                 match alone.and_then(keywords::alone) {
                     Some((types, names)) => Node::Types(types, names),
+                    // `{}`, or a description and no more, is `true`: no rules to walk.
+                    None if k.silent() => Node::Any,
                     None => Node::Rules(Box::new(self.rules(&k, base))),
                 }
             }

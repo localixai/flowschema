@@ -61,7 +61,7 @@ fn main() {
 fn one(tally: &mut Tally, name: &str, file: &Value) {
     let schema = &file["schema"];
     tally.files += 1;
-    let Ok(ours) = catch_unwind(AssertUnwindSafe(|| Schema::new(schema.clone()))) else {
+    let Ok(ours) = catch_unwind(AssertUnwindSafe(|| Schema::new(schema))) else {
         tally.panicked += 1;
         return;
     };
@@ -96,8 +96,7 @@ fn one(tally: &mut Tally, name: &str, file: &Value) {
             ));
         }
     }
-    let copy = best(|| schema.clone());
-    tally.compile.0 += best(|| Schema::new(schema.clone())) - copy;
+    tally.compile.0 += best(|| Schema::new(schema));
     tally.compile.1 += best(|| reference(schema).is_some());
     // Time is compared where both check the same keywords.
     if !answers.is_empty() && unchecked.is_empty() {
