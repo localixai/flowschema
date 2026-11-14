@@ -2,4 +2,12 @@
    colours in syntax.css); redefine here the ones this site changes, and nothing else. This file is
    loaded last on every page, and `npm run sync` never touches it.
 
-   flowschema keeps the template's look as it is. */
+   flowschema keeps the template's look, but for one thing: what a panel and the recording show is
+   what the library prints, character for character, so `>=` in a message stays two characters
+   where the type would join them into one sign (a panel's `font` shorthand turns the joining
+   back on after the template turned it off for code). */
+.panel,
+.xterm-rows {
+  font-variant-ligatures: none;
+  font-feature-settings: 'calt' 0, 'liga' 0;
+}
