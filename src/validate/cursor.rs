@@ -33,6 +33,11 @@ impl<'p, 'd> Cursor<'p, 'd> {
 
     /// The property the field `name` is.
     pub(super) fn find(&mut self, name: &'d str) -> Option<&'p Property> {
+        // An object that names no property (one held to patterns, or to what its other fields
+        // are) has none to find.
+        if self.properties.is_empty() {
+            return None;
+        }
         let wanted = name.as_bytes();
         let last = std::mem::replace(&mut self.last, name);
         let properties = self.properties;
