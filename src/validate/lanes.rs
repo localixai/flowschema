@@ -5,8 +5,12 @@
 
 use serde_json::Value;
 
+use super::scalars::bounds;
 use super::{DEPTH, Walk};
-use crate::node::{ARRAY, Extra, Id, Lane, Leaf, Node, OBJECT, Objects};
+use crate::node::{
+    ARRAY, Extra, HAS_ARRAY, HAS_COMBINED, HAS_NUMBER, HAS_OBJECT, HAS_STRING, Id, Lane, Leaf,
+    Node, OBJECT, Objects, Rules,
+};
 use crate::report::{At, Report};
 
 impl Walk<'_> {
@@ -61,9 +65,43 @@ impl Walk<'_> {
                 }
             },
             (Lane::Walk | Lane::Object | Lane::Array, _, _, _) => {
-                self.node(id, value, &At::Root, Report::quiet(), refs)
+                let unevaluated =
+                    rules.unevaluated_fields.is_some() || rules.unevaluated_items.is_some();
+                match rules.reference.is_some() || unevaluated {
+                    true => self.node(id, value, &At::Root, Report::quiet(), refs),
+                    false => self.direct(rules, value, refs),
+                }
             }
         }
+    }
+
+    /// A node no lane takes, with no `$ref` beside its keywords and nothing unevaluated,
+    /// walked with nothing said: its type first, then only what the value's kind and the
+    /// node's keywords ask, each gone to directly. What `node` answers, by a shorter way.
+    #[inline(never)]
+    pub(super) fn direct(&self, rules: &Rules, value: &Value, refs: usize) -> bool {
+        if rules
+            .types
+            .is_some_and(|types| !self.has_type(types, value))
+        {
+            return false;
+        }
+        let has = |group: u8| rules.has & group != 0;
+        let mut quiet = Report::quiet();
+        let (at, r) = (&At::Root, &mut quiet);
+        let listed = rules.options.is_none() && rules.constant.is_none();
+        (listed || self.kind(rules, value, at, r))
+            && match value {
+                Value::Number(n) => !has(HAS_NUMBER) || bounds(rules, n, at, r),
+                Value::String(text) => !has(HAS_STRING) || self.text(rules, text, at, r),
+                Value::Array(items) => (rules.array.as_ref())
+                    .is_none_or(|arrays| !has(HAS_ARRAY) || self.items(arrays, items, at, r)),
+                Value::Object(fields) => (rules.object.as_ref()).is_none_or(|objects| {
+                    !has(HAS_OBJECT) || self.fields(objects, value, fields, at, r)
+                }),
+                Value::Null | Value::Bool(_) => true,
+            }
+            && (!has(HAS_COMBINED) || self.combined(rules, value, at, r, refs))
     }
 }
 

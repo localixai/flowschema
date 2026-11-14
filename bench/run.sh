@@ -7,7 +7,7 @@ set -eu
 cd "$(dirname "$0")"
 [ -d data/suite/.git ] && [ -d data/jsonschemabench/.git ] || ./fetch.sh
 cargo build --quiet --release --bins
-for bench in micro suite corpus keywords; do
+for bench in micro suite corpus answers keywords; do
     cargo run --quiet --release --bin "$bench" > /dev/null
 done
 ./size.sh > /dev/null

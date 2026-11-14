@@ -74,6 +74,10 @@ fn against(i: i128, f: f64) -> Option<Ordering> {
     if f.is_nan() {
         return None;
     }
+    // An integer a float holds exactly (up to 2^53) is compared as the float it is.
+    if let Some(small) = i32::try_from(i).ok().map(f64::from) {
+        return small.partial_cmp(&f);
+    }
     let floor = f.floor();
     // Past an i128, or infinite: beyond every integer JSON writes, on its side of zero.
     let Some(low) = exact(floor) else {
@@ -225,6 +229,50 @@ impl std::fmt::Write for Spelled {
         room.copy_from_slice(s.as_bytes());
         self.len = end;
         Ok(())
+    }
+}
+
+/// How a number must stand to a bound.
+#[derive(Clone, Copy)]
+pub(crate) enum Sign {
+    AtLeast,
+    Above,
+    AtMost,
+    Below,
+}
+
+impl Sign {
+    /// Whether `n` stands so to `limit`, compared exactly.
+    pub(crate) fn holds(self, n: &Number, limit: &Number) -> bool {
+        let Some(order) = compare(n, limit) else {
+            return false;
+        };
+        match self {
+            Sign::AtLeast => order != Ordering::Less,
+            Sign::Above => order == Ordering::Greater,
+            Sign::AtMost => order != Ordering::Greater,
+            Sign::Below => order == Ordering::Less,
+        }
+    }
+
+    /// Whether `n` stands so to `limit`, two integers or two floats compared as they are.
+    #[inline]
+    pub(crate) fn holds_whole<T: PartialOrd + Copy>(self, n: T, limit: T) -> bool {
+        match self {
+            Sign::AtLeast => n >= limit,
+            Sign::Above => n > limit,
+            Sign::AtMost => n <= limit,
+            Sign::Below => n < limit,
+        }
+    }
+
+    pub(crate) fn said(self) -> &'static str {
+        match self {
+            Sign::AtLeast => ">=",
+            Sign::Above => ">",
+            Sign::AtMost => "<=",
+            Sign::Below => "<",
+        }
     }
 }
 

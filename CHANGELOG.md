@@ -31,7 +31,9 @@
   iterator in between. A union of names (an `anyOf` or a `oneOf` of `enum`s of strings and
   string `const`s, as a list of scopes or an `enum` with titles is written) is one list a quick
   check looks its string up in. A `multipleOf` spells its divisor once, as the schema is
-  compiled, and a whole number not at all. An `enum`'s strings, a field's name and a
+  compiled, and a whole number not at all. A fraction beside whole bounds is compared as the
+  float it is; a node no short way is kept for is told by its type first, then by what the
+  value's kind asks alone, and an `allOf`, a `not` and an `if` go through the short ways too. An `enum`'s strings, a field's name and a
   tag's value are compared inline, with no call to `memcmp`.
 - Every verdict and message is unchanged: the official suite, MaskBench and the quick loop's
   fingerprint say so.

@@ -1,8 +1,6 @@
 //! The compiled schema's nodes: what each schema object asks, in the shape a walk reads with no
 //! keyword looked up (`compile.rs` builds them, `validate.rs` walks them).
 
-use std::cmp::Ordering;
-
 use serde_json::{Number, Value};
 
 use crate::hash::Table;
@@ -50,7 +48,7 @@ pub(crate) struct Rules {
     /// `if`, with `then` and `else`.
     pub(crate) condition: Option<(Id, Option<Id>, Option<Id>)>,
     /// The number bounds in the order they are said, and `multipleOf`.
-    pub(crate) limits: Box<[(Number, Sign)]>,
+    pub(crate) limits: Box<[(Number, number::Sign)]>,
     pub(crate) multiple: Option<number::Divisor>,
     pub(crate) min_length: Option<u64>,
     pub(crate) max_length: Option<u64>,
@@ -269,50 +267,6 @@ impl Rules {
         .into_iter()
         .filter(|(present, _)| *present)
         .fold(0, |all, (_, bit)| all | bit)
-    }
-}
-
-/// How a number must stand to a bound.
-#[derive(Clone, Copy)]
-pub(crate) enum Sign {
-    AtLeast,
-    Above,
-    AtMost,
-    Below,
-}
-
-impl Sign {
-    /// Whether `n` stands so to `limit`, compared exactly.
-    pub(crate) fn holds(self, n: &Number, limit: &Number) -> bool {
-        let Some(order) = number::compare(n, limit) else {
-            return false;
-        };
-        match self {
-            Sign::AtLeast => order != Ordering::Less,
-            Sign::Above => order == Ordering::Greater,
-            Sign::AtMost => order != Ordering::Greater,
-            Sign::Below => order == Ordering::Less,
-        }
-    }
-
-    /// Whether the integer `n` stands so to the integer `limit`.
-    #[inline]
-    pub(crate) fn holds_whole(self, n: i64, limit: i64) -> bool {
-        match self {
-            Sign::AtLeast => n >= limit,
-            Sign::Above => n > limit,
-            Sign::AtMost => n <= limit,
-            Sign::Below => n < limit,
-        }
-    }
-
-    pub(crate) fn said(self) -> &'static str {
-        match self {
-            Sign::AtLeast => ">=",
-            Sign::Above => ">",
-            Sign::AtMost => "<=",
-            Sign::Below => "<",
-        }
     }
 }
 

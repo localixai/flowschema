@@ -12,6 +12,11 @@ use crate::node::{
 use crate::report::{At, Report, said};
 use crate::text::same_text;
 
+/// Whether `types` take a number with a fraction.
+fn fractions(types: u8) -> bool {
+    types & NUMBER != 0
+}
+
 impl Walk<'_> {
     /// A field's `name` held to `propertyNames`' node `id`, read where it is, with no string
     /// made of it: where the node asks only a string's keywords (a pattern, a length, `false`);
@@ -128,11 +133,28 @@ impl Walk<'_> {
                     (Some(_), None) | (None, Some(_)) => false,
                 }
             }),
-            // Only an integer written as one is settled: the rest is the draft's to read.
-            Leaf::Range => value.as_i64().map(|n| {
-                (rules.limits.iter())
-                    .all(|(limit, sign)| limit.as_i64().is_some_and(|l| sign.holds_whole(n, l)))
-            }),
+            // An integer written as one is settled, and a fraction where any number is taken
+            // (whether `1.0` is an integer is the draft's to read): beside bounds a float holds
+            // exactly, it is compared as the float it is.
+            Leaf::Range => {
+                match (value.as_i64(), value.as_f64()) {
+                    (Some(n), _) => Some((rules.limits.iter()).all(|(limit, sign)| {
+                        limit.as_i64().is_some_and(|l| sign.holds_whole(n, l))
+                    })),
+                    (None, Some(f)) if value.is_f64() && rules.types.is_none_or(fractions) => {
+                        let small = |limit: &serde_json::Number| {
+                            limit
+                                .as_i64()
+                                .and_then(|l| i32::try_from(l).ok())
+                                .map(f64::from)
+                        };
+                        (rules.limits.iter())
+                            .map(|(limit, sign)| small(limit).map(|l| sign.holds_whole(f, l)))
+                            .try_fold(true, |all, holds| holds.map(|holds| all && holds))
+                    }
+                    (None, Some(_) | None) => None,
+                }
+            }
             Leaf::Text => {
                 let text = value.as_str()?;
                 let bytes = text.len() as u64;

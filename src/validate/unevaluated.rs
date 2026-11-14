@@ -129,7 +129,7 @@ impl Walk<'_> {
             return;
         }
         self.looked_at(rules, of, seen);
-        let holds = |id: &Id| self.quick(*id, value, &At::Root, refs);
+        let holds = |id: &Id| self.quick(*id, value, refs);
         let branches = (rules.any_of.iter().filter(|id| holds(id)))
             .chain(rules.one_of.iter().filter(|id| holds(id)))
             .chain(rules.all_of.iter());
@@ -186,7 +186,7 @@ impl Walk<'_> {
                 for (index, seen) in seen.iter_mut().enumerate() {
                     let contained = arrays.contains.is_some_and(|(id, _, _)| {
                         let item = items.get(index);
-                        item.is_some_and(|item| self.quick(id, item, &At::Root, 0))
+                        item.is_some_and(|item| self.quick(id, item, 0))
                     });
                     *seen |= index < upto || contained;
                 }

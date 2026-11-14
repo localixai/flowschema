@@ -4,9 +4,8 @@
 use serde_json::{Number, Value};
 
 use crate::draft::Draft;
-use crate::node::{
-    ARRAY, BOOLEAN, INTEGER, NULL, NUMBER, OBJECT, STRING, Sign, TypeList, TypeNames,
-};
+use crate::node::{ARRAY, BOOLEAN, INTEGER, NULL, NUMBER, OBJECT, STRING, TypeList, TypeNames};
+use crate::number::Sign;
 use crate::number::exact;
 
 use super::read::Keywords;

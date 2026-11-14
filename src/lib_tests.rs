@@ -604,3 +604,29 @@ fn a_whole_number_is_held_to_a_decimal_divisor_exactly() {
         ["data must be a multiple of 0.4 (is 3.0)"]
     );
 }
+
+#[test]
+fn a_fraction_is_held_to_whole_bounds_as_the_float_it_is() {
+    let ratio = json!({"type": "number", "minimum": 0, "maximum": 1});
+    for held in [json!(0.5), json!(0.0), json!(1.0), json!(1), json!(0)] {
+        assert!(problems(ratio.clone(), held.clone()).is_empty(), "{held}");
+    }
+    assert_eq!(
+        problems(ratio.clone(), json!(1.5)),
+        ["data must be <= 1 (is 1.5)"]
+    );
+    assert_eq!(
+        problems(ratio, json!(-0.25)),
+        ["data must be >= 0 (is -0.25)"]
+    );
+    // Where only integers are taken, a fraction is not one, whatever its bounds.
+    let whole = json!({"type": "integer", "minimum": 0, "maximum": 10});
+    assert_eq!(
+        problems(whole, json!(2.5)),
+        ["data must be integer (is number)"]
+    );
+    // Past what a float holds exactly, the integer is compared as the integer it is.
+    let far = json!({"exclusiveMaximum": 9007199254740993_i64});
+    assert!(problems(far.clone(), json!(9007199254740992.0)).is_empty());
+    assert!(!problems(far, json!(9007199254740994.0)).is_empty());
+}

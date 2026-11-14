@@ -79,6 +79,12 @@ impl Walk<'_> {
                 return false;
             }
         }
+        // A walk that says nothing has one way through a node's own keywords (`direct`), kept
+        // once for both this walk and the lanes.
+        if !F {
+            return self.direct(rules, value, refs)
+                && self.unevaluated(rules, value, at, &mut r, refs);
+        }
         // Each part stops the rest once quick and failed: `r.ok()` says how it went.
         let has = |group: u8| rules.has & group != 0;
         // A quick walk reads the value's own keywords (a count fails at once) before the
@@ -148,8 +154,8 @@ impl Walk<'_> {
     }
 
     /// Whether `value` matches node `id`, saying nothing.
-    fn quick(&self, id: Id, value: &Value, at: &At<'_>, refs: usize) -> bool {
-        self.node(id, value, at, Report::quiet(), refs)
+    fn quick(&self, id: Id, value: &Value, refs: usize) -> bool {
+        self.holds(id, value, refs)
     }
 
     /// `allOf`, `anyOf`, `oneOf`, `not`, and `if` with its `then` and `else`.
@@ -162,7 +168,11 @@ impl Walk<'_> {
         refs: usize,
     ) -> bool {
         for id in &rules.all_of {
-            let ok = self.fits(*id, value) || self.node(*id, value, at, r.part(), refs);
+            // A quick walk takes each part by its shortest way (`holds`).
+            let ok = match F {
+                true => self.fits(*id, value) || self.node(*id, value, at, r.part(), refs),
+                false => self.holds(*id, value, refs),
+            };
             if !r.took(ok) {
                 return false;
             }
@@ -191,7 +201,7 @@ impl Walk<'_> {
             }
         }
         if let Some(not) = rules.not
-            && self.quick(not, value, at, refs)
+            && self.quick(not, value, refs)
             && !r.no(|| said!("{at} must not match the schema of not"))
         {
             return false;
@@ -199,13 +209,16 @@ impl Walk<'_> {
         let Some((when, then, otherwise)) = rules.condition else {
             return true;
         };
-        let branch = match self.quick(when, value, at, refs) {
+        let branch = match self.quick(when, value, refs) {
             true => then,
             false => otherwise,
         };
         match branch {
             Some(id) => {
-                let ok = self.node(id, value, at, r.part(), refs);
+                let ok = match F {
+                    true => self.node(id, value, at, r.part(), refs),
+                    false => self.holds(id, value, refs),
+                };
                 r.took(ok)
             }
             None => true,
