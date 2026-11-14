@@ -57,9 +57,6 @@ pub struct Schema {
     strict: bool,
     /// Whether a data object's fields come in the order of their names (`sorted_maps`).
     sorted: bool,
-    /// Whether the schema is one leaf, settled with no walk (`Walk::leaf`): asked of every
-    /// check only where it can be.
-    leaf: bool,
 }
 
 impl Schema {
@@ -85,12 +82,7 @@ impl Schema {
         if patterns.iter().any(|(_, matcher)| matcher.is_none()) {
             notes.push("pattern");
         }
-        let leaf = match compiled.nodes.first() {
-            Some(Node::Rules(rules)) => rules.leaf != node::Leaf::Walked,
-            Some(Node::Any | Node::Never | Node::Types(..)) | None => false,
-        };
         Self {
-            leaf,
             nodes: compiled.nodes,
             patterns,
             notes,
@@ -110,11 +102,12 @@ impl Schema {
 
     /// Whether `data` matches: the quick check, which stops at the first failure and says nothing.
     pub fn matches(&self, data: &Value) -> bool {
-        // A schema that is one leaf is settled where it stands, as a field's value is.
+        // The root is walked by the way chosen for its shape, as every node is, called here
+        // with no step between.
         let walk = self.walk();
-        match self.leaf.then(|| walk.leaf(0, data)).flatten() {
-            Some(holds) => holds,
-            None => walk.holds(0, data, 0),
+        match self.nodes.first() {
+            Some(Node::Rules(rules)) => (rules.way.0)(&walk, 0, rules, data, 0),
+            Some(Node::Any | Node::Never | Node::Types(..)) | None => walk.holds(0, data, 0),
         }
     }
 

@@ -6,6 +6,7 @@
 mod containers;
 mod cursor;
 pub(crate) mod lanes;
+mod loose;
 mod objects;
 mod partial;
 mod scalars;

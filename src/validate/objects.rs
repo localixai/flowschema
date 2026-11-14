@@ -95,14 +95,11 @@ impl Walk<'_> {
                 Some(property) => {
                     met |= property.bit;
                     let walked = || self.holds(property.id, value, 0);
-                    // A node of types alone, and most leaves, are settled either way where
-                    // the field stands: a value that surely fails is not walked to fail.
-                    if property.types != 0 {
-                        self.has_type(property.types, value)
-                    } else if property.leaf {
-                        self.leaf(property.id, value).unwrap_or_else(walked)
-                    } else {
-                        walked()
+                    // A node of types alone is settled where the field stands; any other goes
+                    // by the way chosen for it, a leaf's being its own short function.
+                    match property.types {
+                        0 => walked(),
+                        types => self.has_type(types, value),
                     }
                 }
                 None => match objects.extra {

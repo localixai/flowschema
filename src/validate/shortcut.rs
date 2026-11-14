@@ -17,6 +17,33 @@ fn fractions(types: u8) -> bool {
     types & NUMBER != 0
 }
 
+/// Whether `value` is one of the strings of an `enum` of strings: a value that is no string
+/// is none of them.
+#[inline(always)]
+pub(super) fn strings(rules: &Rules, value: &Value) -> bool {
+    value
+        .as_str()
+        .is_some_and(|text| match (&rules.table, &rules.options) {
+            (Some(table), Some(Value::Array(options))) => table.holds_text(options, text),
+            (None, Some(Value::Array(options))) => (options.iter())
+                .any(|option| option.as_str().is_some_and(|known| same_text(known, text))),
+            (Some(_) | None, Some(_) | None) => false,
+        })
+}
+
+/// Whether `value` is the `const` of a leaf (a string, a boolean or null).
+#[inline(always)]
+pub(super) fn constant(rules: &Rules, value: &Value) -> Option<bool> {
+    rules.constant.as_ref().map(|known| {
+        match (known.as_str(), value.as_str()) {
+            (Some(known), Some(text)) => same_text(known, text),
+            // A boolean or null: itself alone.
+            (None, None) => known == value,
+            (Some(_), None) | (None, Some(_)) => false,
+        }
+    })
+}
+
 impl Walk<'_> {
     /// A field's `name` held to `propertyNames`' node `id`, read where it is, with no string
     /// made of it: where the node asks only a string's keywords (a pattern, a length, `false`);
@@ -104,69 +131,63 @@ impl Walk<'_> {
         }
     }
 
-    /// What the leaf `rules` say of `value` (`leaf`).
+    /// What the leaf `rules` say of `value` (`leaf`): each kind of leaf by a function of its
+    /// own, which the quick walk calls directly (`validate/lanes.rs`).
     #[inline]
     pub(super) fn settles(&self, rules: &Rules, value: &Value) -> Option<bool> {
         match rules.leaf {
             Leaf::Walked => None,
-            // A value that is no string is none of the strings.
-            Leaf::Strings => {
-                Some(
-                    value
-                        .as_str()
-                        .is_some_and(|text| match (&rules.table, &rules.options) {
-                            (Some(table), Some(Value::Array(options))) => {
-                                table.holds_text(options, text)
-                            }
-                            (None, Some(Value::Array(options))) => (options.iter()).any(|option| {
-                                option.as_str().is_some_and(|known| same_text(known, text))
-                            }),
-                            (Some(_) | None, Some(_) | None) => false,
-                        }),
-                )
-            }
-            Leaf::Const => rules.constant.as_ref().map(|known| {
-                match (known.as_str(), value.as_str()) {
-                    (Some(known), Some(text)) => same_text(known, text),
-                    // A boolean or null: itself alone.
-                    (None, None) => known == value,
-                    (Some(_), None) | (None, Some(_)) => false,
-                }
-            }),
-            // An integer written as one is settled, and a fraction where any number is taken
-            // (whether `1.0` is an integer is the draft's to read): beside bounds a float holds
-            // exactly, it is compared as the float it is.
-            Leaf::Range => {
-                match (value.as_i64(), value.as_f64()) {
-                    (Some(n), _) => Some((rules.limits.iter()).all(|(limit, sign)| {
-                        limit.as_i64().is_some_and(|l| sign.holds_whole(n, l))
-                    })),
-                    (None, Some(f)) if value.is_f64() && rules.types.is_none_or(fractions) => {
-                        let small = |limit: &serde_json::Number| {
-                            limit
-                                .as_i64()
-                                .and_then(|l| i32::try_from(l).ok())
-                                .map(f64::from)
-                        };
-                        (rules.limits.iter())
-                            .map(|(limit, sign)| small(limit).map(|l| sign.holds_whole(f, l)))
-                            .try_fold(true, |all, holds| holds.map(|holds| all && holds))
-                    }
-                    (None, Some(_) | None) => None,
-                }
-            }
-            Leaf::Text => {
-                let text = value.as_str()?;
-                let bytes = text.len() as u64;
-                let length = rules.max_length.is_none_or(|most| bytes <= most)
-                    && rules.min_length.is_none_or(|least| bytes / 4 >= least);
-                // A length the count of bytes does not settle is counted by the walk.
-                length.then(|| {
-                    rules.pattern.is_none_or(|place| self.matches(place, text))
-                        && (rules.format.as_ref()).is_none_or(|(_, check)| check(text.as_bytes()))
-                })
-            }
+            Leaf::Strings => Some(strings(rules, value)),
+            Leaf::Const => constant(rules, value),
+            Leaf::Range => Self::range(rules, value),
+            Leaf::Text => self.string(rules, value),
         }
+    }
+
+    /// An integer written as one is settled, and a fraction where any number is taken
+    /// (whether `1.0` is an integer is the draft's to read): beside bounds a float holds
+    /// exactly, it is compared as the float it is.
+    #[inline(always)]
+    pub(super) fn range(rules: &Rules, value: &Value) -> Option<bool> {
+        match (value.as_i64(), value.as_f64()) {
+            (Some(n), _) => Some(
+                (rules.limits.iter())
+                    .all(|(limit, sign)| limit.as_i64().is_some_and(|l| sign.holds_whole(n, l))),
+            ),
+            (None, Some(f)) if value.is_f64() && rules.types.is_none_or(fractions) => {
+                let small = |limit: &serde_json::Number| {
+                    limit
+                        .as_i64()
+                        .and_then(|l| i32::try_from(l).ok())
+                        .map(f64::from)
+                };
+                (rules.limits.iter())
+                    .map(|(limit, sign)| small(limit).map(|l| sign.holds_whole(f, l)))
+                    .try_fold(true, |all, holds| holds.map(|holds| all && holds))
+            }
+            (None, Some(_) | None) => None,
+        }
+    }
+
+    /// A string held to its length, its pattern and its format.
+    #[inline(always)]
+    pub(super) fn string(&self, rules: &Rules, value: &Value) -> Option<bool> {
+        let text = value.as_str()?;
+        let bytes = text.len() as u64;
+        let (least, most) = (rules.min_length, rules.max_length);
+        // A character takes one to four bytes: the count of bytes settles most bounds,
+        // and the characters are counted only where it does not.
+        let length = most.is_none_or(|most| bytes <= most)
+            && least.is_none_or(|least| bytes / 4 >= least)
+            || {
+                let len = text.chars().count() as u64;
+                least.is_none_or(|least| len >= least) && most.is_none_or(|most| len <= most)
+            };
+        Some(
+            length
+                && rules.pattern.is_none_or(|place| self.matches(place, text))
+                && (rules.format.as_ref()).is_none_or(|(_, check)| check(text.as_bytes())),
+        )
     }
 
     /// How many of a union's branches `value` matches, counted up to `most` (one settles an

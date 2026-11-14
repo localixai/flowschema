@@ -6,8 +6,8 @@
 use serde_json::Value;
 
 use crate::node::{
-    BOOLEAN, HAS_ARRAY, HAS_COMBINED, HAS_KIND, HAS_NUMBER, HAS_OBJECT, HAS_STRING, INTEGER, Lane,
-    Leaf, NULL, Rules, STRING,
+    BOOLEAN, Extra, HAS_ARRAY, HAS_COMBINED, HAS_KIND, HAS_NUMBER, HAS_OBJECT, HAS_STRING, INTEGER,
+    Lane, Leaf, NULL, Rules, STRING,
 };
 
 /// What `rules` ask, where they are a leaf.
@@ -64,6 +64,13 @@ pub(super) fn lane(rules: &Rules) -> Lane {
         && !unevaluated;
     let own = rules.has & !HAS_KIND;
     let object = (rules.object.as_ref()).is_some_and(|objects| objects.simple);
+    let patterned = (rules.object.as_ref()).is_some_and(|objects| {
+        !objects.patterns.is_empty() && objects.names.is_none() && !objects.closing
+    });
+    // Held to the names it requires and to nothing of its fields.
+    let named = (rules.object.as_ref()).is_some_and(|objects| {
+        objects.properties.is_empty() && matches!(objects.extra, Extra::Absent | Extra::Allowed)
+    });
     let array = (rules.array.as_ref()).is_some_and(|arrays| {
         arrays.prefix.is_empty() && !arrays.unique && arrays.contains.is_none()
     });
@@ -78,7 +85,9 @@ pub(super) fn lane(rules: &Rules) -> Lane {
     let unions = rules.any_of.is_empty() && rules.one_of.is_empty();
     let (all, not) = (!rules.all_of.is_empty(), rules.not.is_some());
     match (bare, own) {
+        (true, HAS_OBJECT) if object && named => Lane::Required,
         (true, HAS_OBJECT) if object => Lane::Object,
+        (true, HAS_OBJECT) if patterned => Lane::Patterned,
         (true, HAS_OBJECT) => Lane::Fields,
         (true, HAS_ARRAY) if array => Lane::Array,
         (true, HAS_ARRAY) => Lane::Items,

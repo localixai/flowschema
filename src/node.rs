@@ -210,6 +210,10 @@ pub(crate) enum Lane {
     /// `type`, `enum` and `const` alone, where `Leaf` does not settle them (a number among
     /// the values).
     Kind,
+    /// `type`, and an object held to `required` alone: what a branch of a union often is.
+    Required,
+    /// `type`, and an object held to `patternProperties` beside what `Object` is held to.
+    Patterned,
 }
 
 /// What an array that asks only its type, its count and its items' types asks.

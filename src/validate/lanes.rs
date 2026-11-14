@@ -6,6 +6,7 @@
 use serde_json::Value;
 
 use super::scalars::bounds;
+use super::shortcut;
 use super::{DEPTH, Walk};
 use crate::node::{
     ARRAY, Extra, HAS_ARRAY, HAS_COMBINED, HAS_NUMBER, HAS_OBJECT, HAS_STRING, Id, Lane, Leaf,
@@ -72,7 +73,10 @@ pub(crate) fn way(rules: &Rules) -> Way {
         (Some(_), _, _, _) => types,
         (None, Some(_), _, _) => plain,
         (None, None, Some(_), _) => alias,
-        (None, None, None, Leaf::Strings | Leaf::Const | Leaf::Range | Leaf::Text) => leaf,
+        (None, None, None, Leaf::Strings) => strings,
+        (None, None, None, Leaf::Const) => constant,
+        (None, None, None, Leaf::Range) => range,
+        (None, None, None, Leaf::Text) => string,
         (None, None, None, Leaf::Walked) => by_lane(rules.lane),
     }
 }
@@ -90,6 +94,8 @@ fn by_lane(lane: Lane) -> Way {
         Lane::Fields => object,
         Lane::Items => items,
         Lane::Kind => kind,
+        Lane::Required => required,
+        Lane::Patterned => patterned,
         Lane::Walk => rest,
     }
 }
@@ -107,12 +113,24 @@ fn alias(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, refs: usize) -> b
     (rules.alias).is_none_or(|target| refs < DEPTH && walk.holds(target, value, refs + 1))
 }
 
-/// A leaf says so where it stands, held or surely not; what it leaves open goes by its lane.
-fn leaf(walk: &Walk<'_>, id: Id, rules: &Rules, value: &Value, refs: usize) -> bool {
-    match walk.settles(rules, value) {
-        Some(holds) => holds,
-        None => by_lane(rules.lane)(walk, id, rules, value, refs),
-    }
+/// A leaf says so where it stands, held or surely not, each kind by its own function; what
+/// one leaves open (a fraction where integers are asked, an integer past what a float holds)
+/// goes by its lane.
+fn strings(_: &Walk<'_>, _: Id, rules: &Rules, value: &Value, _: usize) -> bool {
+    shortcut::strings(rules, value)
+}
+
+fn constant(walk: &Walk<'_>, id: Id, rules: &Rules, value: &Value, refs: usize) -> bool {
+    shortcut::constant(rules, value)
+        .unwrap_or_else(|| by_lane(rules.lane)(walk, id, rules, value, refs))
+}
+
+fn range(walk: &Walk<'_>, id: Id, rules: &Rules, value: &Value, refs: usize) -> bool {
+    Walk::range(rules, value).unwrap_or_else(|| by_lane(rules.lane)(walk, id, rules, value, refs))
+}
+
+fn string(walk: &Walk<'_>, id: Id, rules: &Rules, value: &Value, refs: usize) -> bool {
+    (walk.string(rules, value)).unwrap_or_else(|| by_lane(rules.lane)(walk, id, rules, value, refs))
 }
 
 fn not(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, refs: usize) -> bool {
@@ -160,6 +178,29 @@ fn object(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, _: usize) -> boo
                     true => walk.in_order(objects, fields),
                     false => walk.fields(objects, value, fields, &At::Root, &mut Report::quiet()),
                 }
+        }
+        (_, _) => rules.types.is_none_or(|types| walk.has_type(types, value)),
+    }
+}
+
+/// An object held to the names it requires, each looked up; no field of it is read.
+fn required(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, _: usize) -> bool {
+    match (value, &rules.object) {
+        (Value::Object(fields), Some(objects)) => {
+            rules.types.is_none_or(|types| types & OBJECT != 0)
+                && (objects.required.iter())
+                    .all(|it| fields.contains_key(objects.required_name(it)))
+        }
+        (_, _) => rules.types.is_none_or(|types| walk.has_type(types, value)),
+    }
+}
+
+/// An object held to patterns for its names (`Walk::patterned`).
+fn patterned(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, _: usize) -> bool {
+    match (value, &rules.object) {
+        (Value::Object(fields), Some(objects)) => {
+            rules.types.is_none_or(|types| types & OBJECT != 0)
+                && walk.patterned(objects, value, fields)
         }
         (_, _) => rules.types.is_none_or(|types| walk.has_type(types, value)),
     }
@@ -225,3 +266,7 @@ pub(super) fn in_order(objects: &Objects, given: usize) -> bool {
     let looked_up = open && known > 0 && known.saturating_mul(4) <= given;
     !hashed && !looked_up
 }
+
+#[cfg(test)]
+#[path = "lanes_tests.rs"]
+mod tests;
