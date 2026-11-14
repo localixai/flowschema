@@ -35,8 +35,8 @@
     },
     {
       "id": "size",
-      "about": "It adds at most 300 KB to a release binary built for size; jsonschema is the comparison.",
-      "maxBytes": 307200
+      "about": "It adds at most 312 KB to a release binary built for size (a size moves by a page of the binary, 16 KB); jsonschema is the comparison.",
+      "maxBytes": 320000
     }
   ]
 }

@@ -1,7 +1,7 @@
 | added to a release binary built for size | size |
 |---|---|
-| flowschema, all of it | 293 KB |
-| of which its own code | 244 KB |
+| flowschema, all of it | 309 KB |
+| of which its own code | 260 KB |
 | of which regex-lite | 49 KB |
 | jsonschema 0.60 | 1,884 KB |
 

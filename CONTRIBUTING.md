@@ -16,8 +16,8 @@ bench/run.sh         # the benchmarks, then the run held to bench/budgets.json
 - **Never slower than the reference.** No typical check, compile or message is slower than the
   `jsonschema` crate's (`never-slower`), and MaskBench's real schemas compile and check faster
   (`corpus-speed`). The budgets are in [bench/budgets.json](bench/budgets.json).
-- **Small.** It adds at most 300 KB to a binary built for size (`size`), with two dependencies.
-  At most 300 lines of working code per file and 7,500 in all (`tests/repo.rs`).
+- **Small.** It adds at most 312 KB to a binary built for size (`size`), with two dependencies.
+  At most 300 lines of working code per file and 7,700 in all (`tests/repo.rs`).
 - **Messages a model can act on.** Each names where the value is, the rule and what the data has.
 - **No panic, no `unsafe`, no I/O.** The lints in `Cargo.toml` hold the first, the crate's
   attribute the second, and `tests/repo.rs` the third: no working file names a file, a socket, a

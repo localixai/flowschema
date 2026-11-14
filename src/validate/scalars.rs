@@ -101,8 +101,10 @@ fn length<const F: bool>(rules: &Rules, text: &str, at: &At<'_>, r: &mut Report<
     if most.is_none_or(|most| bytes <= most) && least.is_none_or(|least| bytes / 4 >= least) {
         return true;
     }
-    // Past four bytes a character, a quick walk knows the text is too long without counting.
-    if !r.full() && most.is_some_and(|most| bytes > most.saturating_mul(4)) {
+    // Past four bytes a character, a quick walk knows the text is too long without counting;
+    // with fewer bytes than the least characters, that it is too short.
+    let long = most.is_some_and(|most| bytes > most.saturating_mul(4));
+    if !r.full() && (long || least.is_some_and(|least| bytes < least)) {
         return r.no(String::new);
     }
     let len = text.chars().count() as u64;

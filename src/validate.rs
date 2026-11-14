@@ -5,7 +5,7 @@
 
 mod containers;
 mod cursor;
-mod lanes;
+pub(crate) mod lanes;
 mod objects;
 mod partial;
 mod scalars;
@@ -230,7 +230,7 @@ impl Walk<'_> {
     /// `type`, `enum` and `const`. Inlined in `node`, its one caller: most nodes ask a type, and
     /// a call for each would cost more than the check.
     #[inline(always)]
-    fn kind<const F: bool>(
+    pub(super) fn kind<const F: bool>(
         &self,
         rules: &Rules,
         value: &Value,

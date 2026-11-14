@@ -21,43 +21,43 @@ allocations are counted exactly.
 
 | check | flowschema | jsonschema 0.60 | flowschema faster by |
 |---|---|---|---|
-| review verdict, valid | 113 ns (0 alloc) | 159 ns (0 alloc) | 1.41x |
-| review verdict, invalid | 17 ns (0 alloc) | 32 ns (0 alloc) | 1.95x |
-| 1,000 rows | 25.73 µs (0 alloc) | 47.53 µs (0 alloc) | 1.85x |
-| 500 objects × 20 fields | 23.43 µs (0 alloc) | 158.75 µs (0 alloc) | 6.77x |
-| tree of 511 nodes by `$ref` | 5.05 µs (0 alloc) | 10.18 µs (7 alloc) | 2.02x |
-| 64 tool calls, `oneOf` of 8 | 1.74 µs (0 alloc) | 2.70 µs (0 alloc) | 1.55x |
-| `uniqueItems`, 1,000 strings | 2.71 µs (1 alloc) | 4.53 µs (1 alloc) | 1.67x |
-| `enum` of 1,000, the last | 5 ns (0 alloc) | 6 ns (0 alloc) | 1.16x |
-| `format: date-time` | 6 ns (0 alloc) | 9 ns (0 alloc) | 1.46x |
-| `format: email` | 20 ns (0 alloc) | 77 ns (1 alloc) | 3.87x |
+| review verdict, valid | 101 ns (0 alloc) | 150 ns (0 alloc) | 1.49x |
+| review verdict, invalid | 15 ns (0 alloc) | 32 ns (0 alloc) | 2.20x |
+| 1,000 rows | 21.52 µs (0 alloc) | 46.58 µs (0 alloc) | 2.16x |
+| 500 objects × 20 fields | 22.82 µs (0 alloc) | 152.65 µs (0 alloc) | 6.69x |
+| tree of 511 nodes by `$ref` | 4.36 µs (0 alloc) | 10.36 µs (7 alloc) | 2.38x |
+| 64 tool calls, `oneOf` of 8 | 1.52 µs (0 alloc) | 2.66 µs (0 alloc) | 1.75x |
+| `uniqueItems`, 1,000 strings | 2.72 µs (1 alloc) | 4.53 µs (1 alloc) | 1.67x |
+| `enum` of 1,000, the last | 5 ns (0 alloc) | 6 ns (0 alloc) | 1.12x |
+| `format: date-time` | 6 ns (0 alloc) | 9 ns (0 alloc) | 1.43x |
+| `format: email` | 20 ns (0 alloc) | 78 ns (1 alloc) | 3.91x |
 | `format: uuid` | 4 ns (0 alloc) | 4 ns (0 alloc) | 1.06x |
-| `format: ipv4` | 5 ns (0 alloc) | 6 ns (0 alloc) | 1.40x |
-| `format: uri` | 14 ns (0 alloc) | 21 ns (0 alloc) | 1.52x |
-| `format: regex`, `^[a-z]+\d$` | 51 ns (0 alloc) | 60 ns (3 alloc) | 1.18x |
-| `format: regex`, `^\p{L}+$` | 46 ns (0 alloc) | 59 ns (3 alloc) | 1.30x |
-| `format: regex`, `^\P{ASCII}+$` | 50 ns (0 alloc) | 60 ns (3 alloc) | 1.20x |
-| `format: regex`, `[\P{Letter}]` | 44 ns (0 alloc) | 61 ns (3 alloc) | 1.40x |
-| `format: regex`, `(?=a)b` | 51 ns (0 alloc) | 76 ns (4 alloc) | 1.48x |
+| `format: ipv4` | 5 ns (0 alloc) | 7 ns (0 alloc) | 1.29x |
+| `format: uri` | 13 ns (0 alloc) | 19 ns (0 alloc) | 1.45x |
+| `format: regex`, `^[a-z]+\d$` | 52 ns (0 alloc) | 60 ns (3 alloc) | 1.16x |
+| `format: regex`, `^\p{L}+$` | 46 ns (0 alloc) | 56 ns (3 alloc) | 1.22x |
+| `format: regex`, `^\P{ASCII}+$` | 50 ns (0 alloc) | 59 ns (3 alloc) | 1.17x |
+| `format: regex`, `[\P{Letter}]` | 44 ns (0 alloc) | 64 ns (3 alloc) | 1.46x |
+| `format: regex`, `(?=a)b` | 50 ns (0 alloc) | 78 ns (4 alloc) | 1.56x |
 | `format: regex`, `(a)\1` | 53 ns (0 alloc) | 79 ns (4 alloc) | 1.49x |
-| `format: regex`, `(?<n>a)\k<n>` | 70 ns (0 alloc) | 122 ns (7 alloc) | 1.76x |
-| `pattern: ^[A-Z]{3}$` | 6 ns (0 alloc) | 13 ns (0 alloc) | 2.21x |
-| `pattern: ^\d{4}-\d{2}-\d{2}$` | 7 ns (0 alloc) | 15 ns (0 alloc) | 2.09x |
-| `pattern: ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$` | 9 ns (0 alloc) | 19 ns (0 alloc) | 2.08x |
-| `pattern: ^(small\|medium\|large)$` | 4 ns (0 alloc) | 5 ns (0 alloc) | 1.14x |
+| `format: regex`, `(?<n>a)\k<n>` | 69 ns (0 alloc) | 119 ns (7 alloc) | 1.73x |
+| `pattern: ^[A-Z]{3}$` | 6 ns (0 alloc) | 13 ns (0 alloc) | 2.26x |
+| `pattern: ^\d{4}-\d{2}-\d{2}$` | 7 ns (0 alloc) | 14 ns (0 alloc) | 2.08x |
+| `pattern: ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$` | 9 ns (0 alloc) | 17 ns (0 alloc) | 1.88x |
+| `pattern: ^(small\|medium\|large)$` | 4 ns (0 alloc) | 5 ns (0 alloc) | 1.21x |
 
 | compiled once | flowschema | jsonschema 0.60 | flowschema faster by |
 |---|---|---|---|
-| review verdict | 1.05 µs | 6.08 µs | 5.80x |
-| tool calls | 5.59 µs | 25.43 µs | 4.55x |
+| review verdict | 1.09 µs | 6.04 µs | 5.56x |
+| tool calls | 5.68 µs | 25.59 µs | 4.50x |
 
 | one request | flowschema | jsonschema 0.60 | flowschema faster by |
 |---|---|---|---|
-| review verdict: compiled, one answer checked | 1.14 µs | 5.99 µs | 5.24x |
-| one tool call: compiled, one answer checked | 462 ns | 3.61 µs | 7.82x |
-| nested models: compiled, one answer checked | 2.24 µs | 10.07 µs | 4.49x |
+| review verdict: compiled, one answer checked | 1.12 µs | 5.87 µs | 5.25x |
+| one tool call: compiled, one answer checked | 480 ns | 3.64 µs | 7.57x |
+| nested models: compiled, one answer checked | 2.22 µs | 9.91 µs | 4.47x |
 
-Every message of an invalid verdict: flowschema 569 ns, jsonschema 722 ns (1.27x).
+Every message of an invalid verdict: flowschema 554 ns, jsonschema 663 ns (1.20x).
 
 <!-- /bench:micro -->
 
@@ -69,10 +69,10 @@ Every message of an invalid verdict: flowschema 569 ns, jsonschema 722 ns (1.27x
 |---|---|---|
 | schemas compiled | 11,306 of 11,306 (0 panics) | 11,298 (8 refused) |
 | answers judged as labelled | 36,984 of 36,990 (99.98%) | 36,970 (99.95%) |
-| compiling every schema | 123.7 ms | 462.6 ms (flowschema 3.74x faster) |
-| checking every answer of the 9,779 schemas both check whole | 2.98 ms | 4.22 ms (flowschema 1.41x faster) |
+| compiling every schema | 125.4 ms | 461.8 ms (flowschema 3.68x faster) |
+| checking every answer of the 9,779 schemas both check whole | 2.74 ms | 4.23 ms (flowschema 1.55x faster) |
 
-The two agree on 99.93% of the answers (`corpus-disagreements.tsv`). 21 schemas (0.19%) ask something not checked here: `pattern` (19), `$ref outside the schema` (1), `format` (1). flowschema is slower by over 5% on 1166 schemas (`corpus-slower.tsv`).
+The two agree on 99.93% of the answers (`corpus-disagreements.tsv`). 21 schemas (0.19%) ask something not checked here: `pattern` (19), `$ref outside the schema` (1), `format` (1). flowschema is slower by over 5% on 508 schemas (`corpus-slower.tsv`).
 
 <!-- /bench:corpus -->
 
@@ -86,19 +86,19 @@ is not:
 
 | answers of MaskBench | answers | instructions, jsonschema's over flowschema's | flowschema runs over 5% fewer on | over 5% more on |
 |---|---|---|---|---|
-| that match | 13,937 | 1.32x | 10,591 (76.0%) | 1,951 (14.0%) |
-| that do not | 22,979 | 1.29x | 14,717 (64.0%) | 5,104 (22.2%) |
+| that match | 13,937 | 1.43x | 11,988 (86.0%) | 1,002 (7.2%) |
+| that do not | 22,979 | 1.40x | 18,222 (79.3%) | 2,739 (11.9%) |
 
-Of the 9,779 schemas both check whole that have answers, flowschema runs over 5% fewer instructions on the answers of 7,295 (74.6%) and over 5% more on those of 1,472 (15.1%). An answer is one `matches` and one `is_valid`, counted in the processor's instructions: the same on every run of one build, and not a time.
+Of the 9,779 schemas both check whole that have answers, flowschema runs over 5% fewer instructions on the answers of 8,392 (85.8%) and over 5% more on those of 708 (7.2%). An answer is one `matches` and one `is_valid`, counted in the processor's instructions: the same on every run of one build, and not a time.
 
 <!-- /bench:answers -->
 
 Where flowschema runs more, it is mostly on an answer that does not match: `jsonschema` asks an
 object's `required` names and the names it refuses before it reads a value, and so meets some
 failures at once, where flowschema reads names and values in one pass. That one pass is what
-makes an answer that matches cheaper, and asking the names first was tried three ways: each
-slowed more answers than it sped up. The rest are schemas of the rarer keywords (`not`, `if`,
-`allOf`, `patternProperties`), which no short way is kept for.
+makes an answer that matches cheaper, and asking the names first was tried four ways: each
+slowed more answers than it sped up. The rest are mostly unions whose branches are told apart
+by what they require, and objects keyed by a pattern.
 
 ## Size
 
@@ -106,8 +106,8 @@ slowed more answers than it sped up. The rest are schemas of the rarer keywords 
 
 | added to a release binary built for size | size |
 |---|---|
-| flowschema, all of it | 293 KB |
-| of which its own code | 244 KB |
+| flowschema, all of it | 309 KB |
+| of which its own code | 260 KB |
 | of which regex-lite | 49 KB |
 | jsonschema 0.60 | 1,884 KB |
 
@@ -152,6 +152,10 @@ Over a program that reads the JSON alone (312 KB), stripped, `opt-level = "z"`, 
 - **`unevaluated*` settled as it compiles**: where what a schema applies to every value
   (`$ref`, `allOf`) takes every field or item, nothing is left to evaluate and nothing is
   walked; elsewhere what was looked at is marked on the stack, and only once the rest holds.
+- **A way of its own for each shape of node**: as a schema is compiled, every node is given the
+  function that walks its shape (an object in order, a list, a union, a number with its bounds,
+  a `not` alone, and a dozen more), and a quick walk calls it with no question asked of what
+  the node is. A shape added costs the others nothing.
 - **A quick walk first**: `matches` stops at the first failure and writes nothing; only
   `mismatches` on data that failed walks again for every message.
 

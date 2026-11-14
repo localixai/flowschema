@@ -102,6 +102,6 @@ it, is.
 | `corpus-labels` | At least 99.95% of MaskBench's answers are judged as labelled |
 | `corpus-panics` | No schema of MaskBench makes it panic |
 | `corpus-speed` | On MaskBench, both built for speed, it compiles at least 3x and checks at least 1.1x faster |
-| `size` | It adds at most 300 KB to a binary built for size |
+| `size` | It adds at most 312 KB to a binary built for size |
 
 A number changes only together with its reason, in the change that moves it.

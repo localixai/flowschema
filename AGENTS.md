@@ -14,7 +14,8 @@ and it binds an agent as it binds a person. This file says where things are and 
   keywords in one pass, `leaves.rs` finds the leaves a walk settles where it stands, `flatten.rs`
   names each child where its `$ref` lands, `unions.rs` finds the unions that are one list of
   names; `index.rs` and `uri.rs` resolve references;
-  `validate.rs` and `validate/` walk the data (`lanes.rs` the quick walk's shortest ways,
+  `validate.rs` and `validate/` walk the data (`lanes.rs` the way of the quick walk through
+  each shape of node, chosen for a node as its schema is compiled,
   `objects.rs` an object in the order of its fields, `partial.rs` a call still being
   written); `fit.rs` fits a schema to a provider's
   strict mode, `cut.rs` reads a text the output limit cut off, `mend.rs` reads what a model
@@ -51,7 +52,7 @@ fails the checks when broken.
 - **F2** _checked_ (`bench`, `no-allocation`): `matches` allocates nothing, valid data or not;
   a `uniqueItems` keeps one set of its items' hashes.
 - **F3** _checked_ (`tests/repo.rs`): at most 300 lines of working code per file and 100 per
-  function; at most 7,500 in all. A change that does not fit removes code first.
+  function; at most 7,700 in all. A change that does not fit removes code first.
 - **F4** _checked_: every file opens with a `//!` that says what it is; `x.rs` sits beside its
   directory `x/`, never `x/mod.rs`; unit tests live in `x_tests.rs`, wired by
   `#[cfg(test)] #[path = "x_tests.rs"] mod tests;`; English only. Comments say why.

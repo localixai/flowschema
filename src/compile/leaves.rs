@@ -57,11 +57,11 @@ pub(super) fn leaf(rules: &Rules) -> Leaf {
 
 /// The lane the quick walk takes through `rules`.
 pub(super) fn lane(rules: &Rules) -> Lane {
+    let unevaluated = rules.unevaluated_fields.is_some() || rules.unevaluated_items.is_some();
     let bare = rules.reference.is_none()
         && rules.options.is_none()
         && rules.constant.is_none()
-        && rules.unevaluated_fields.is_none()
-        && rules.unevaluated_items.is_none();
+        && !unevaluated;
     let own = rules.has & !HAS_KIND;
     let object = (rules.object.as_ref()).is_some_and(|objects| objects.simple);
     let array = (rules.array.as_ref()).is_some_and(|arrays| {
@@ -73,10 +73,21 @@ pub(super) fn lane(rules: &Rules) -> Lane {
         && rules.not.is_none()
         && rules.condition.is_none()
         && rules.any_of.is_empty() != rules.one_of.is_empty();
+    // One combination alone, with not even a `type` beside it.
+    let alone = rules.has == HAS_COMBINED && rules.condition.is_none();
+    let unions = rules.any_of.is_empty() && rules.one_of.is_empty();
+    let (all, not) = (!rules.all_of.is_empty(), rules.not.is_some());
     match (bare, own) {
         (true, HAS_OBJECT) if object => Lane::Object,
+        (true, HAS_OBJECT) => Lane::Fields,
         (true, HAS_ARRAY) if array => Lane::Array,
+        (true, HAS_ARRAY) => Lane::Items,
         (true, HAS_COMBINED) if union => Lane::Union,
+        (true, HAS_COMBINED) if alone && unions && not && !all => Lane::Not,
+        (true, HAS_COMBINED) if alone && unions && all && !not => Lane::All,
+        (true, HAS_NUMBER) => Lane::Number,
+        (true, HAS_STRING) => Lane::Text,
+        (false, 0) if rules.reference.is_none() && !unevaluated => Lane::Kind,
         (true | false, _) => Lane::Walk,
     }
 }

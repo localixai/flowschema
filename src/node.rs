@@ -73,6 +73,8 @@ pub(crate) struct Rules {
     pub(crate) lane: Lane,
     /// The strings a union of names holds, where the node is one (`compile/unions.rs`).
     pub(crate) listed: Option<Box<crate::hash::Listed>>,
+    /// The way a quick walk takes through the node (`validate/lanes.rs`), chosen last.
+    pub(crate) way: Quick,
     /// The node this one only refers to, where a `$ref` is all it asks.
     pub(crate) alias: Option<Id>,
     /// An array that asks only its type, its count and its items' types: the quick walk reads
@@ -173,6 +175,15 @@ pub(crate) enum Leaf {
     Text,
 }
 
+/// A node's way through the quick walk: the general one until the node's own is chosen.
+pub(crate) struct Quick(pub(crate) crate::validate::lanes::Way);
+
+impl Default for Quick {
+    fn default() -> Self {
+        Self(crate::validate::lanes::rest)
+    }
+}
+
 /// The lane the quick walk takes through a node (`Walk::holds`): most nodes that are no leaf
 /// are an object or an array and no more, and are walked with nothing else looked at.
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
@@ -186,6 +197,19 @@ pub(crate) enum Lane {
     Array,
     /// An `anyOf` or a `oneOf` and nothing else.
     Union,
+    /// A `not` and nothing else; an `allOf` and nothing else.
+    Not,
+    All,
+    /// `type`, and a number's keywords or a string's (what `Leaf` leaves open of them).
+    Number,
+    Text,
+    /// `type`, and any keyword of an object or of an array (a pattern for its names, a count,
+    /// unique items): what `Object` and `Array` are not for.
+    Fields,
+    Items,
+    /// `type`, `enum` and `const` alone, where `Leaf` does not settle them (a number among
+    /// the values).
+    Kind,
 }
 
 /// What an array that asks only its type, its count and its items' types asks.

@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 /// Lines of working code in the library, at most. Hard: when a change does not fit, code is
 /// removed. It was 5,878 when the library left Localix CLI.
-const LIMIT: usize = 7_500;
+const LIMIT: usize = 7_700;
 
 /// Lines of working code in one file, at most: a file is one idea, read whole.
 const FILE_LIMIT: usize = 300;

@@ -21,9 +21,10 @@ use crate::draft::Draft;
 use crate::format;
 use crate::hash::Table;
 use crate::index::Index;
-use crate::node::{HAS_KIND, Id, Lane, Node, Rules, kind_of};
+use crate::node::{HAS_KIND, Id, Lane, Node, Quick, Rules, kind_of};
 use crate::number::Divisor;
 use crate::uri::{self, BASE};
+use crate::validate::lanes::way;
 
 use keywords::{count, limits, types};
 use read::Keywords;
@@ -57,6 +58,13 @@ pub(crate) fn compile(root: &Value, documents: &[(String, Value)]) -> Compiled {
     kinds::fold(&mut compiler.nodes);
     evaluated::settle(&mut compiler.nodes);
     flatten::settle(&mut compiler.nodes, !compiler.refs.is_empty());
+    // Now that every node says what it is: the way a quick walk takes through each (a
+    // union of names is told by its list inside its own way, found next).
+    for node in &mut compiler.nodes {
+        if let Node::Rules(rules) = node {
+            rules.way = Quick(way(rules));
+        }
+    }
     if compiler.unions {
         unions::settle(&mut compiler.nodes);
     }

@@ -3,377 +3,377 @@
     {
       "jsonschema": {
         "allocations": 0,
-        "ns": 158.81234361968308
+        "ns": 150.10200523103748
       },
       "name": "review verdict, valid",
       "ours": {
         "allocations": 0,
-        "ns": 112.51756998213222
+        "ns": 100.53716608594658
       },
-      "ratio": 1.4114448405249285,
+      "ratio": 1.493000161778175,
       "valid": true
     },
     {
       "jsonschema": {
         "allocations": 0,
-        "ns": 32.317202268431004
+        "ns": 32.45943378301349
       },
       "name": "review verdict, invalid",
       "ours": {
         "allocations": 0,
-        "ns": 16.59110256762323
+        "ns": 14.736249680225121
       },
-      "ratio": 1.947863448900408,
+      "ratio": 2.2026929841295697,
       "valid": false
     },
     {
       "jsonschema": {
         "allocations": 0,
-        "ns": 47533.4
+        "ns": 46583.4
       },
       "name": "1,000 rows",
       "ours": {
         "allocations": 0,
-        "ns": 25734.375
+        "ns": 21518.444444444445
       },
-      "ratio": 1.8470780813600487,
+      "ratio": 2.1648126155339606,
       "valid": true
     },
     {
       "jsonschema": {
         "allocations": 0,
-        "ns": 158750.0
+        "ns": 152646.0
       },
       "name": "500 objects × 20 fields",
       "ours": {
         "allocations": 0,
-        "ns": 23432.25
+        "ns": 22819.444444444445
       },
-      "ratio": 6.774850899934918,
+      "ratio": 6.689295191722459,
       "valid": true
     },
     {
       "jsonschema": {
         "allocations": 7,
-        "ns": 10177.05
+        "ns": 10364.052631578947
       },
       "name": "tree of 511 nodes by `$ref`",
       "ours": {
         "allocations": 0,
-        "ns": 5045.923076923077
+        "ns": 4356.466666666666
       },
-      "ratio": 2.016885680747595,
+      "ratio": 2.3790042308550388,
       "valid": true
     },
     {
       "jsonschema": {
         "allocations": 0,
-        "ns": 2697.635135135135
+        "ns": 2656.8194444444443
       },
       "name": "64 tool calls, `oneOf` of 8",
       "ours": {
         "allocations": 0,
-        "ns": 1742.9906542056074
+        "ns": 1517.6307692307691
       },
-      "ratio": 1.5477048764582277,
+      "ratio": 1.7506362537648652,
       "valid": true
     },
     {
       "jsonschema": {
         "allocations": 1,
-        "ns": 4533.159090909091
+        "ns": 4530.555555555556
       },
       "name": "`uniqueItems`, 1,000 strings",
       "ours": {
         "allocations": 1,
-        "ns": 2714.376811594203
+        "ns": 2715.753424657534
       },
-      "ratio": 1.670055193349034,
+      "ratio": 1.6682499649712765,
       "valid": true
     },
     {
       "jsonschema": {
         "allocations": 0,
-        "ns": 5.777543781866548
+        "ns": 5.7749124482648835
       },
       "name": "`enum` of 1,000, the last",
       "ours": {
         "allocations": 0,
-        "ns": 4.961597229296119
+        "ns": 5.1787592008412195
       },
-      "ratio": 1.1644523960454936,
+      "ratio": 1.1151150737664781,
       "valid": true
     },
     {
       "jsonschema": {
         "allocations": 0,
-        "ns": 9.46630102309883
+        "ns": 9.234617841175218
       },
       "name": "`format: date-time`",
       "ours": {
         "allocations": 0,
-        "ns": 6.464751694143826
+        "ns": 6.461912972918146
       },
-      "ratio": 1.464294604180079,
+      "ratio": 1.4290842169923161,
       "valid": true
     },
     {
       "jsonschema": {
         "allocations": 1,
-        "ns": 77.30229479258605
+        "ns": 78.00175284837862
       },
       "name": "`format: email`",
       "ours": {
         "allocations": 0,
-        "ns": 19.982830980541777
+        "ns": 19.926936619718308
       },
-      "ratio": 3.868435601935428,
+      "ratio": 3.9143875617687023,
       "valid": true
     },
     {
       "jsonschema": {
         "allocations": 0,
-        "ns": 3.9219260873872983
+        "ns": 3.922542204568024
       },
       "name": "`format: uuid`",
       "ours": {
         "allocations": 0,
-        "ns": 3.693399846508058
+        "ns": 3.6914934197978257
       },
-      "ratio": 1.0618742216863688,
+      "ratio": 1.062589515541613,
       "valid": true
     },
     {
       "jsonschema": {
         "allocations": 0,
-        "ns": 6.464501983712675
+        "ns": 6.843967940043719
       },
       "name": "`format: ipv4`",
       "ours": {
         "allocations": 0,
-        "ns": 4.617666762369605
+        "ns": 5.30842014718532
       },
-      "ratio": 1.3999498700065025,
+      "ratio": 1.2892664390313173,
       "valid": true
     },
     {
       "jsonschema": {
         "allocations": 0,
-        "ns": 20.57118620104623
+        "ns": 19.443387501651472
       },
       "name": "`format: uri`",
       "ours": {
         "allocations": 0,
-        "ns": 13.551136363636363
+        "ns": 13.404704463208684
       },
-      "ratio": 1.5180414135782545,
+      "ratio": 1.4504898302694327,
       "valid": true
     },
     {
       "jsonschema": {
         "allocations": 3,
-        "ns": 60.493681917211326
+        "ns": 60.068499324019825
       },
       "name": "`format: regex`, `^[a-z]+\\d$`",
       "ours": {
         "allocations": 0,
-        "ns": 51.17565698478562
+        "ns": 51.883339154732795
       },
-      "ratio": 1.182079243949832,
+      "ratio": 1.1577608593170199,
       "valid": true
     },
     {
       "jsonschema": {
         "allocations": 3,
-        "ns": 59.36847599164927
+        "ns": 55.88902743142145
       },
       "name": "`format: regex`, `^\\p{L}+$`",
       "ours": {
         "allocations": 0,
-        "ns": 45.80795126643155
+        "ns": 45.6777205408886
       },
-      "ratio": 1.2960299325841054,
+      "ratio": 1.2235511485603174,
       "valid": true
     },
     {
       "jsonschema": {
         "allocations": 3,
-        "ns": 60.413065326633166
+        "ns": 58.88930264048747
       },
       "name": "`format: regex`, `^\\P{ASCII}+$`",
       "ours": {
         "allocations": 0,
-        "ns": 50.35134193098641
+        "ns": 50.47551502870652
       },
-      "ratio": 1.1998302926948354,
+      "ratio": 1.1666904757087837,
       "valid": true
     },
     {
       "jsonschema": {
         "allocations": 3,
-        "ns": 61.34410112359551
+        "ns": 63.90134529147982
       },
       "name": "`format: regex`, `[\\P{Letter}]`",
       "ours": {
         "allocations": 0,
-        "ns": 43.81427264409881
+        "ns": 43.80713626576438
       },
-      "ratio": 1.4000940200899976,
+      "ratio": 1.4586971607504786,
       "valid": true
     },
     {
       "jsonschema": {
         "allocations": 4,
-        "ns": 75.80539834566827
+        "ns": 77.92517321016166
       },
       "name": "`format: regex`, `(?=a)b`",
       "ours": {
         "allocations": 0,
-        "ns": 51.31256637168141
+        "ns": 49.907220090687126
       },
-      "ratio": 1.4773261932871098,
+      "ratio": 1.5614007966895913,
       "valid": true
     },
     {
       "jsonschema": {
         "allocations": 4,
-        "ns": 79.31719457013574
+        "ns": 78.74259259259259
       },
       "name": "`format: regex`, `(a)\\1`",
       "ours": {
         "allocations": 0,
-        "ns": 53.253119429590015
+        "ns": 52.84396152475953
       },
-      "ratio": 1.4894375281622143,
+      "ratio": 1.4900963198169483,
       "valid": true
     },
     {
       "jsonschema": {
         "allocations": 7,
-        "ns": 122.36521739130434
+        "ns": 118.73887673231218
       },
       "name": "`format: regex`, `(?<n>a)\\k<n>`",
       "ours": {
         "allocations": 0,
-        "ns": 69.64324779133361
+        "ns": 68.62629614267938
       },
-      "ratio": 1.7570291632282469,
+      "ratio": 1.7302241765378807,
       "valid": true
     },
     {
       "jsonschema": {
         "allocations": 0,
-        "ns": 13.287064755002364
+        "ns": 13.073666513831576
       },
       "name": "`pattern: ^[A-Z]{3}$`",
       "ours": {
         "allocations": 0,
-        "ns": 6.005769847205898
+        "ns": 5.773464119772845
       },
-      "ratio": 2.212383273592142,
+      "ratio": 2.2644405927902356,
       "valid": true
     },
     {
       "jsonschema": {
         "allocations": 0,
-        "ns": 15.058055152394775
+        "ns": 14.443710795642126
       },
       "name": "`pattern: ^\\d{4}-\\d{2}-\\d{2}$`",
       "ours": {
         "allocations": 0,
-        "ns": 7.193565400843882
+        "ns": 6.934147794994041
       },
-      "ratio": 2.093267290046227,
+      "ratio": 2.0829828297097235,
       "valid": true
     },
     {
       "jsonschema": {
         "allocations": 0,
-        "ns": 18.820095168374817
+        "ns": 17.414280958721704
       },
       "name": "`pattern: ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$`",
       "ours": {
         "allocations": 0,
-        "ns": 9.04660489558844
+        "ns": 9.257536285820617
       },
-      "ratio": 2.0803489690980537,
+      "ratio": 1.8810923793401095,
       "valid": true
     },
     {
       "jsonschema": {
         "allocations": 0,
-        "ns": 5.081468218442256
+        "ns": 5.413766434648105
       },
       "name": "`pattern: ^(small|medium|large)$`",
       "ours": {
         "allocations": 0,
-        "ns": 4.458629146766491
+        "ns": 4.472937886958259
       },
-      "ratio": 1.1396929529623392,
+      "ratio": 1.2103379415200508,
       "valid": true
     }
   ],
   "compiled": [
     {
       "jsonschema": {
-        "ns": 6082.0
+        "ns": 6038.967741935484
       },
       "name": "review verdict",
       "ours": {
-        "ns": 1047.8461538461538
+        "ns": 1085.7988165680474
       },
-      "ratio": 5.804287182498899
+      "ratio": 5.561774105651753
     },
     {
       "jsonschema": {
-        "ns": 25432.25
+        "ns": 25589.285714285714
       },
       "name": "tool calls",
       "ours": {
-        "ns": 5594.69696969697
+        "ns": 5683.823529411765
       },
-      "ratio": 4.545777928232904
+      "ratio": 4.502125300314175
     }
   ],
   "messages": {
     "jsonschema": {
-      "ns": 722.276923076923
+      "ns": 663.0859375
     },
     "ours": {
-      "ns": 569.1472392638037
+      "ns": 553.8039215686274
     },
-    "ratio": 1.2690510877487409
+    "ratio": 1.1973297979216826
   },
   "requests": [
     {
       "jsonschema": {
-        "ns": 5990.90625
+        "ns": 5867.1875
       },
       "name": "review verdict",
       "ours": {
-        "ns": 1142.3040935672514
+        "ns": 1118.0115606936415
       },
-      "ratio": 5.244580916532708
+      "ratio": 5.247877308495678
     },
     {
       "jsonschema": {
-        "ns": 3612.8727272727274
+        "ns": 3637.2549019607845
       },
       "name": "one tool call",
       "ours": {
-        "ns": 461.9304556354916
+        "ns": 480.3479381443299
       },
-      "ratio": 7.821248162350304
+      "ratio": 7.572125563840561
     },
     {
       "jsonschema": {
-        "ns": 10072.9
+        "ns": 9914.473684210527
       },
       "name": "nested models",
       "ours": {
-        "ns": 2244.8518518518517
+        "ns": 2216.7619047619046
       },
-      "ratio": 4.48711125043309
+      "ratio": 4.472502736046165
     }
   ]
 }
