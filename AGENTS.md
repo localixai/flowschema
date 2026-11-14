@@ -31,6 +31,10 @@ and it binds an agent as it binds a person. This file says where things are and 
   measured in first: instructions, cycles and allocations, the same on every run, and a
   fingerprint of every verdict. Its method: [bench/README.md](bench/README.md).
 - `docs/`: the documentation, one page per file.
+- `site/`: flowschema.localix.ai, the landing and its docs, made from the llx-sitekit template,
+  with its own guide ([site/AGENTS.md](site/AGENTS.md)), its own toolchain (npm) and its own
+  [README](site/README.md), which says where each figure and message it shows comes from. A run
+  of the benchmarks that moves a figure the site shows changes it there in the same commit.
 
 ## Commands
 
@@ -40,6 +44,7 @@ cargo test --locked              # the tests; one: cargo test --locked <name>
 bench/run.sh                     # every benchmark, results/ written, then held to budgets.json
 (cd bench/quick && cargo run --release)   # a change measured in seconds, in instructions
 cargo run --release --bin check --manifest-path bench/Cargo.toml   # the last run, held again
+(cd site && npm ci && npm run check)   # the site: its layers, types, build and docs
 ```
 
 ## Rules
@@ -85,6 +90,8 @@ fails the checks when broken.
 - A release moves those lines under the version, which is the one in `Cargo.toml`; a tag
   `v<version>` makes the GitHub release ([release workflow](.github/workflows/release.yml)).
   Programs take flowschema as a git dependency on the tag; it is not on crates.io yet.
+- A push to `main` that changes `site/` publishes the site
+  ([site workflow](.github/workflows/site.yml), Cloudflare Pages project `flowschema`).
 - Never commit, tag or push unasked.
 
 ## Before you say it is done

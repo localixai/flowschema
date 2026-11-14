@@ -1,0 +1,56 @@
+/* One strip under a hairline: the site's line on the left, the links on the right; one under the
+   other on a phone. */
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.25rem 1.5rem;
+  margin-top: auto;
+  padding-block: 0.6rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+.foot p {
+  margin: 0;
+}
+/* The maker signs first, in the text's own colour, set off from the line by a hairline. The
+   padding makes the target tall without making the line so. */
+.foot-maker {
+  margin-right: 0.75rem;
+  padding-block: 0.75rem;
+  color: var(--white);
+  font-weight: 500;
+}
+.foot-maker::after {
+  content: '';
+  display: inline-block;
+  width: 1px;
+  height: 1em;
+  margin-left: 0.75rem;
+  vertical-align: -0.15em;
+  background: var(--line-strong);
+}
+@media (hover: hover) and (pointer: fine) {
+  .foot-maker:hover {
+    color: var(--soft);
+  }
+}
+.foot nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1.4rem;
+}
+.foot nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: var(--soft);
+}
+@media (hover: hover) and (pointer: fine) {
+  .foot nav a:hover {
+    color: var(--white);
+  }
+}

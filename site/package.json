@@ -1,0 +1,38 @@
+{
+  "name": "llx-sitekit",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build && vite build --ssr src/app/entry-server.tsx --outDir dist-ssr && node scripts/prerender.mjs",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "node scripts/lint.mjs",
+    "check": "npm run lint && npm run build",
+    "sync": "sh scripts/sync.sh"
+  },
+  "dependencies": {
+    "@xterm/xterm": "^6.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^6.0.0",
+    "highlight.js": "^11.12.0",
+    "@localix-ai/flowdown": "^0.5.1",
+    "typescript": "^6.0.0",
+    "vite": "^8.0.0"
+  },
+  "description": "flowschema's landing page and docs, flowschema.localix.ai, made from the llx-sitekit template.",
+  "sitekit": {
+    "template": "https://github.com/rsaryev/llx-sitekit.git",
+    "branch": "main",
+    "synced": "643651f5434eb78d910e2836c059c63d19d3601c"
+  }
+}

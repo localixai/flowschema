@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /kit
+Disallow: /og-card.html
+Sitemap: https://flowschema.localix.ai/sitemap.xml

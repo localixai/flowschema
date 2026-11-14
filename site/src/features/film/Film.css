@@ -1,0 +1,67 @@
+/* The recorded run in a real terminal, almost the page's black, edged by a hairline. Its sixteen
+   colours are the --ansi-* tokens. */
+/* On a phone the smallest font still leaves the recording wider than the frame: it scrolls
+   sideways rather than losing its last columns. */
+.film {
+  display: grid;
+  align-content: center;
+  /* Its size is set here and nowhere else: about the shape of the recording (its columns by its
+     rows of Mono), never taller than the window leaves beside the bar and the caption. The
+     terminal takes the rows that fit, so the page does not move when it loads. */
+  aspect-ratio: 1.16;
+  max-height: calc(100svh - 13.5rem);
+  min-height: 12rem;
+  overflow: hidden;
+  overflow-x: auto;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+}
+.film .xterm-viewport {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+/* One quiet line under it: the chapters, which jump to a command, and play or pause. */
+.demo-caption {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0.75rem 0.25rem 0;
+  color: var(--muted);
+  font: 400 0.8125rem / 1.5 var(--mono);
+}
+.film-chapters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 1rem;
+}
+.demo-caption button {
+  min-height: 2rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+  transition: color 160ms ease;
+}
+.demo-caption button:hover,
+.demo-caption button[aria-current] {
+  color: var(--white);
+}
+.demo-caption .film-toggle {
+  min-width: 4.5ch;
+  text-align: right;
+  color: var(--soft);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.demo-caption button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="robots" content="noindex">
+  <title>Social card</title>
+  <!-- The source of og.png, the picture a link preview shows. Edit the words, then render it at
+       twice 1200×630 with a headless browser:
+       chrome --headless --hide-scrollbars --force-device-scale-factor=2 --screenshot=public/og.png --window-size=1200,630 public/og-card.html -->
+  <style>
+    @font-face { font-family: 'Display'; src: url(fonts/dm-sans.woff2) format('woff2'); font-weight: 100 1000; }
+    @font-face { font-family: 'Text'; src: url(fonts/inter.woff2) format('woff2'); font-weight: 100 900; }
+    @font-face { font-family: 'Mono'; src: url(fonts/jetbrains-mono.woff2) format('woff2'); font-weight: 100 800; }
+    html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; background: #050505; color: #f4f4f2; }
+    body { position: relative; }
+    .og-head { position: absolute; left: 80px; top: 56px; }
+    .og-name { font: 600 58px/1 'Display', sans-serif; letter-spacing: -0.04em; }
+    .og-tag { margin-top: 18px; color: #b0b0ad; font: 400 26px/1.35 'Text', sans-serif; letter-spacing: -0.01em; }
+    .og-url { position: absolute; right: 80px; top: 72px; color: #8b8b87; font: 400 20px/1 'Mono', monospace; }
+    /* A tool call a model wrote and what flowschema says of it: the library's own messages. */
+    .og-frame { position: absolute; left: 80px; right: 80px; top: 216px; bottom: 64px; box-sizing: border-box; padding: 34px 40px; border: 1px solid #2a2a28; border-radius: 20px; background: #0b0b0b; font: 400 23px/1.62 'Mono', monospace; font-variant-ligatures: none; white-space: pre; }
+    .og-dim { color: #8b8b87; }
+    .og-soft { color: #b0b0ad; }
+  </style>
+</head>
+<body>
+  <div class="og-head">
+    <div class="og-name">flowschema</div>
+    <div class="og-tag">JSON Schema for agents</div>
+  </div>
+  <div class="og-url">flowschema.localix.ai</div>
+  <div class="og-frame"><span class="og-dim">the call the model wrote</span>
+<span class="og-soft">{"path": 7, "limit": 0, "force": true}</span>
+
+<span class="og-dim">what goes back to it</span>
+data has "force", which the schema does not allow
+data.limit must be >= 1 (is 0)
+data.path must be string (is integer)</div>
+</body>
+</html>

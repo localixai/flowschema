@@ -1,0 +1,12 @@
+# flowschema
+
+> JSON Schema for agents: tool calls and structured output, checked as models write them. A Rust crate: drafts 4 to 2020-12, two dependencies, no allocation on a check.
+
+flowschema compiles a JSON Schema in about a microsecond, from the request that brings it or
+once for many checks, checks a tool call or a structured answer against it with no allocation,
+and says what is wrong in words a model can mend its answer from. Beside the check: a schema as a
+provider's strict mode takes it (`fit`), what a reply cut off by the output limit wrote whole
+(`whole`), whether a call still streaming can still match (`may_match`), and a value read as the
+model meant it (`mend`). It is taken from its repository
+(https://github.com/localixai/flowschema), MIT-licensed, and made by Localix Lab
+(https://localix.ai).

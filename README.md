@@ -11,6 +11,7 @@
 </p>
 
 <p align="center">
+  <a href="https://flowschema.localix.ai"><b>flowschema.localix.ai</b></a> ·
   <a href="docs/agents.md"><b>In an agent</b></a> ·
   <a href="docs/api.md">API</a> ·
   <a href="docs/conformance.md">Conformance</a> ·

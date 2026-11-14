@@ -30,7 +30,17 @@ fn walk(dir: &Path, keep: &dyn Fn(&Path) -> bool, out: &mut Vec<PathBuf>) {
         let path = entry.path();
         let name = entry.file_name();
         if path.is_dir() {
-            if !matches!(name.to_str(), Some("target" | ".git" | "data" | "out")) {
+            // What is built or fetched, not written here: the crates' and the site's.
+            let made = [
+                "target",
+                ".git",
+                "data",
+                "out",
+                "node_modules",
+                "dist",
+                "dist-ssr",
+            ];
+            if !name.to_str().is_some_and(|name| made.contains(&name)) {
                 walk(&path, keep, out);
             }
         } else if keep(&path) {

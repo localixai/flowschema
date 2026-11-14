@@ -1,0 +1,5 @@
+/* This site's own look. The template's tokens are in src/shared/styles/global.css (and the code
+   colours in syntax.css); redefine here the ones this site changes, and nothing else. This file is
+   loaded last on every page, and `npm run sync` never touches it.
+
+   flowschema keeps the template's look as it is. */

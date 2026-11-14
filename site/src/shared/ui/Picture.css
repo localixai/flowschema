@@ -1,0 +1,7 @@
+/* A picture takes its frame's width and keeps its own proportions. */
+.picture,
+.picture img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
