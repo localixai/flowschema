@@ -26,6 +26,14 @@ pub(super) struct Class {
 }
 
 impl Class {
+    /// The one ASCII character the class is, where it is one.
+    pub(super) fn only(&self) -> Option<u8> {
+        match *self.ranges {
+            [(first, last)] if first == last => u8::try_from(first).ok().filter(u8::is_ascii),
+            _ => None,
+        }
+    }
+
     /// No character: `[]`.
     pub(super) fn empty() -> Self {
         Self { ranges: vec![] }

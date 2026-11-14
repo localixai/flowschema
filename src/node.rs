@@ -263,7 +263,7 @@ impl Rules {
             objects.closing = !objects.dependent_schemas.is_empty();
             objects.simple =
                 objects.names.is_none() && objects.patterns.is_empty() && !objects.closing;
-            objects.counted = objects.simple;
+            objects.ordered = objects.simple;
         }
         self.has = self.groups();
     }
@@ -364,8 +364,6 @@ pub(crate) struct Objects {
     /// `propertyNames`, no `patternProperties`, nothing `closing`): most objects, which the
     /// quick walk reads in one pass (`Walk::in_order`).
     pub(crate) simple: bool,
-    /// `simple`, or that with a count of its fields beside: read in one pass too, once counted.
-    pub(crate) counted: bool,
     /// The types every other field is held to, where `extra` is a node of types alone (a map
     /// of strings, say): told here as a property is told its own (`compile/flatten.rs`).
     pub(crate) extra_types: u8,
@@ -373,6 +371,11 @@ pub(crate) struct Objects {
     /// `properties` holds: each branch's names as its properties' bits, so the walk that met
     /// the properties tells each branch with nothing looked up (`compile/unions.rs`).
     pub(crate) branches: Box<[u64]>,
+    /// The places among `properties` of those the branches name: the only ones looked for.
+    pub(crate) named: Box<[usize]>,
+    /// Whether its fields are read in one pass (no `propertyNames`, no `patternProperties`),
+    /// whatever it is held to once they are (`closing`).
+    pub(crate) ordered: bool,
 }
 
 impl Objects {

@@ -160,9 +160,19 @@ impl Walk<'_> {
     }
 }
 
-/// The bits of the properties among `fields`, both in the order of their names: what a union
-/// of required names beside an object is told by (`Objects::branches`), with nothing looked up.
+/// The bits of the properties among `fields`: what a union of required names beside an object
+/// is told by (`Objects::branches`), with nothing looked up. Both are in the order of their
+/// names and are met in one pass; where the properties are many (`Objects::lookup`), only
+/// those a branch names (`Objects::named`) are looked for.
 pub(super) fn seen(objects: &Objects, fields: &Map<String, Value>) -> u64 {
+    if objects.lookup.is_some() {
+        return (objects
+            .named
+            .iter()
+            .filter_map(|place| objects.properties.get(*place)))
+        .filter(|property| field(fields, &property.name).is_some())
+        .fold(0, |bits, property| bits | property.bit);
+    }
     let (mut next, mut bits) = (0, 0);
     for name in fields.keys() {
         while let Some(property) = objects.properties.get(next) {

@@ -33,6 +33,7 @@ API takes, and `regex-lite`, for the few patterns its own matcher does not take.
 
 ```toml
 [dependencies]
-flowschema = { git = "https://github.com/localixai/flowschema", tag = "v0.1.0" }
+# No release is tagged yet: add `rev = "<a commit>"` for a build that must not move.
+flowschema = { git = "https://github.com/localixai/flowschema" }
 serde_json = "1"
 ```

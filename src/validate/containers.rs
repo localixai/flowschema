@@ -216,6 +216,21 @@ impl Walk<'_> {
     }
 }
 
+impl Walk<'_> {
+    /// What an object is held to once its fields are, with nothing said: the counts,
+    /// `dependentRequired`, and `dependentSchemas` by the way of each.
+    pub(super) fn closed(
+        &self,
+        objects: &Objects,
+        object: &Value,
+        fields: &Map<String, Value>,
+    ) -> bool {
+        counts(objects, fields, &At::Root, &mut Report::quiet())
+            && (objects.dependent_schemas.iter())
+                .all(|(name, id)| field(fields, name).is_none() || self.holds(*id, object, 0))
+    }
+}
+
 /// `required`, each field looked up: whether to go on.
 fn missing<const F: bool>(
     objects: &Objects,

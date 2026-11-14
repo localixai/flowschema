@@ -3,14 +3,14 @@
 //! place, no keyword asked that the node does not have. Whatever asks more is walked as every
 //! node is (`Walk::node`), and says the same.
 
-use serde_json::Value;
+use serde_json::{Map, Value};
 
 use super::scalars::bounds;
 use super::shortcut;
 use super::{DEPTH, Walk, unions};
 use crate::node::{
-    ARRAY, Extra, HAS_ARRAY, HAS_COMBINED, HAS_NUMBER, HAS_OBJECT, HAS_STRING, Id, Lane, Leaf,
-    Node, OBJECT, Objects, Rules,
+    ALL, ARRAY, Extra, HAS_ARRAY, HAS_COMBINED, HAS_NUMBER, HAS_OBJECT, HAS_STRING, Id, Items,
+    Lane, Leaf, Node, OBJECT, Objects, Rules,
 };
 use crate::number::{among, json_eq};
 use crate::report::{At, Report};
@@ -132,8 +132,22 @@ fn types(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, _: usize) -> bool
     (rules.only_types).is_none_or(|types| walk.has_type(types, value))
 }
 
+/// An array that asks only its type, its count and its items' types: read here, in one loop
+/// and with no call; one of such arrays in turn, or a value that is no array, by `Walk::plain`.
 fn plain(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, _: usize) -> bool {
-    (rules.plain_array.as_ref()).is_none_or(|plan| walk.plain(plan, value))
+    let Some(plan) = &rules.plain_array else {
+        return true;
+    };
+    match (value, &plan.items) {
+        (Value::Array(items), Items::Types(types)) => {
+            let len = items.len() as u64;
+            plan.types & ARRAY != 0
+                && plan.min <= len
+                && len <= plan.max
+                && (*types == ALL || items.iter().all(|item| walk.has_type(*types, item)))
+        }
+        (_, Items::Types(_) | Items::Plain(_)) => walk.plain(plan, value),
+    }
 }
 
 /// A `$ref` and nothing else is what it lands on.
@@ -185,10 +199,15 @@ fn text(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, _: usize) -> bool 
 pub(super) fn object(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, _: usize) -> bool {
     match (value, &rules.object) {
         (Value::Object(fields), Some(objects)) => {
-            let ordered = walk.sorted && objects.counted && in_order(objects, fields.len());
+            let ordered = walk.sorted && objects.ordered && in_order(objects, fields.len());
             rules.types.is_none_or(|types| types & OBJECT != 0)
                 && match ordered {
-                    true => counted(objects, fields.len()) && walk.in_order(objects, fields),
+                    // What closes the object is asked first, so that the walk of its fields
+                    // is the last call here and costs an object no frame of its own.
+                    true => {
+                        (!objects.closing || closed(walk, objects, value, fields))
+                            && walk.in_order(objects, fields)
+                    }
                     false => unordered(walk, objects, value),
                 }
         }
@@ -205,6 +224,14 @@ fn counted(objects: &Objects, given: usize) -> bool {
             && objects.max_fields.is_none_or(|most| given <= most))
 }
 
+/// What closes an object: its count of fields, read here, and its dependencies, by a call
+/// only where it has any.
+#[inline(always)]
+fn closed(walk: &Walk<'_>, objects: &Objects, value: &Value, fields: &Map<String, Value>) -> bool {
+    let free = objects.dependent.is_empty() && objects.dependent_schemas.is_empty();
+    counted(objects, fields.len()) && (free || walk.closed(objects, value, fields))
+}
+
 /// An object not read in the order of its fields, a call of its own so that `object` stays
 /// short: by hash where it names far more properties than the value has fields, else by
 /// `Walk::fields`.
@@ -215,8 +242,9 @@ fn unordered(walk: &Walk<'_>, objects: &Objects, value: &Value) -> bool {
     };
     let given = fields.len();
     match &objects.lookup {
-        Some(lookup) if objects.counted && objects.properties.len() > given.saturating_mul(4) => {
-            counted(objects, given) && walk.by_hash(objects, lookup, fields)
+        Some(lookup) if objects.ordered && objects.properties.len() > given.saturating_mul(4) => {
+            (!objects.closing || closed(walk, objects, value, fields))
+                && walk.by_hash(objects, lookup, fields)
         }
         Some(_) | None => walk.fields(objects, value, fields, &At::Root, &mut Report::quiet()),
     }

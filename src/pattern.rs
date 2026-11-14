@@ -30,6 +30,10 @@ const DFA_POSITIONS: usize = 4096;
 /// A `pattern` compiled once: ECMA-262 syntax, as JSON Schema says.
 pub(crate) struct Pattern {
     engine: Engine,
+    /// The byte every match begins the text with and the byte every match ends it with, where
+    /// the pattern says so (`^a…` and `…z$`): a text with another is told no match with no
+    /// engine run. An object keyed by many patterns tries each name against them all.
+    ends: (Option<u8>, Option<u8>),
 }
 
 enum Engine {
@@ -93,11 +97,21 @@ impl Pattern {
             Some(simple) => Engine::Simple(simple),
             None => automaton(&node).map_or_else(|| lite(&node), Ok)?,
         };
-        Ok(Self { engine })
+        Ok(Self {
+            engine,
+            ends: ends(&node),
+        })
     }
 
     /// Whether the pattern matches anywhere in `text` (unanchored, as JSON Schema says).
+    #[inline]
     pub(crate) fn is_match(&self, text: &str) -> bool {
+        let bytes = text.as_bytes();
+        let apart = |end: Option<u8>, byte: Option<&u8>| end.is_some_and(|end| byte != Some(&end));
+        !apart(self.ends.0, bytes.first()) && !apart(self.ends.1, bytes.last()) && self.run(text)
+    }
+
+    fn run(&self, text: &str) -> bool {
         match &self.engine {
             Engine::Simple(simple) => simple.is_match(text),
             Engine::Narrow(automaton) => automaton.is_match(text),
@@ -108,6 +122,40 @@ impl Pattern {
             Engine::Lite(regex) => regex.is_match(text),
         }
     }
+}
+
+/// The one text `source` matches, where it is a pattern that matches a whole text and no other
+/// (`^name$`): a `patternProperties` keyed by it is a property of that name.
+pub(crate) fn exact(source: &str) -> Option<String> {
+    let node = parse::parse(source).ok()?;
+    match &*shape::branches(&node)? {
+        [branch] if branch.start && branch.end => simple::literal(branch.body),
+        _ => None,
+    }
+}
+
+/// The bytes a pattern's every match begins and ends the text with: the one character after
+/// a `^` that opens the pattern, the one before a `$` that closes it.
+fn ends(node: &parse::Node) -> (Option<u8>, Option<u8>) {
+    use parse::{Assert, Node};
+    let Node::Concat(parts) = node else {
+        return (None, None);
+    };
+    let only = |part: Option<&Node>| match part {
+        Some(Node::Class(class)) => class.only(),
+        Some(Node::Concat(_) | Node::Alt(_) | Node::Repeat(..) | Node::Assert(_)) | None => None,
+    };
+    let first = match parts.first() {
+        Some(Node::Assert(Assert::Start)) => only(parts.get(1)),
+        _ => None,
+    };
+    let last = match parts.last() {
+        Some(Node::Assert(Assert::End)) => {
+            only(parts.len().checked_sub(2).and_then(|at| parts.get(at)))
+        }
+        _ => None,
+    };
+    (first, last)
 }
 
 /// Whether `text` is an ECMA-262 regular expression, as the `regex` format asks: one that uses

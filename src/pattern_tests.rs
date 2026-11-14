@@ -267,3 +267,114 @@ fn a_boundary_with_no_character_around_it_looks_at_the_text_s_ends() {
         check(source, text, expected);
     }
 }
+
+/// The bytes a pattern's matches begin and end with tell a text no match exactly where the
+/// engine would: every pattern says of every text what its engine alone says.
+#[test]
+fn a_text_told_apart_by_its_ends_is_one_the_engine_refuses() {
+    let patterns = [
+        "^project_id$",
+        "^a",
+        "z$",
+        "^$",
+        "^a$",
+        "^ab|cd$",
+        "^(a|b)c$",
+        "^a?b$",
+        "^ab*$",
+        "^[ab]c$",
+        "^name:(en|nl)$",
+        "^Service:([0-9]{1}):Binding$",
+        "a",
+        "",
+        "^é$",
+        "^a.z$",
+        "^\\.x$",
+        "x\\$$",
+        "^contexts_.*",
+        "(^a)|b",
+        "^a{2}$",
+        "^(a)$",
+        "^a\\b$",
+    ];
+    let texts = [
+        "",
+        "a",
+        "z",
+        "ab",
+        "abz",
+        "ac",
+        "bc",
+        "cd",
+        "b",
+        "abbb",
+        "project_id",
+        "project_ids",
+        "name:en",
+        "name:fr",
+        "Service:1:Binding",
+        "Service:1:Location",
+        "é",
+        "a\nz",
+        ".x",
+        "x$",
+        "contexts_x",
+        "xcontexts_",
+        "aa",
+        "az",
+        "a$",
+    ];
+    let mut told = 0;
+    for source in patterns {
+        let pattern = Pattern::new(source).unwrap();
+        for text in texts {
+            assert_eq!(
+                pattern.is_match(text),
+                pattern.run(text),
+                "{source:?} with {text:?}"
+            );
+        }
+        told += usize::from(pattern.ends != (None, None));
+    }
+    // The ends are read off the patterns that say them, not off none.
+    assert!(told >= 8, "{told}");
+}
+
+/// A run of one class not held at both ends says the same of a text of ASCII, read in its
+/// tight pass, as of the same text with a character past ASCII beside it, read in the other.
+#[test]
+fn a_run_reads_ascii_as_it_reads_any_text() {
+    let patterns = [
+        "[a-f0-9]{4}",
+        "^[a-f0-9]{4}",
+        "[a-f0-9]{4}$",
+        "[a-f]{2,3}",
+        "^\\d+",
+        "\\d{2}$",
+        "[^x]{3}",
+    ];
+    let texts = [
+        "", "abcd", "xabcdx", "abc", "abcx", "xabcd", "ab12", "12", "1", "a1b2c3d4", "xxxx",
+        "abxcd", "x12",
+    ];
+    for source in patterns {
+        let pattern = Pattern::new(source).unwrap();
+        // The same pattern with the texts' runs kept apart from a `é` that is of no class here.
+        for text in texts {
+            let reference = regex_lite::Regex::new(source).unwrap().is_match(text);
+            assert_eq!(
+                pattern.is_match(text),
+                reference,
+                "{source:?} with {text:?}"
+            );
+            let beside = format!("{text}\u{e9}");
+            if !source.ends_with('$') && !source.contains("[^x]") {
+                assert_eq!(
+                    pattern.is_match(&beside),
+                    reference,
+                    "{source:?} with {beside:?}"
+                );
+            }
+        }
+    }
+}

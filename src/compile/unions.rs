@@ -66,10 +66,10 @@ pub(super) fn settle(nodes: &mut [Node]) {
             && let Some(Node::Rules(rules)) = nodes.get_mut(id)
             && let Some(objects) = &mut rules.object
         {
-            for (property, bit) in objects.properties.iter_mut().zip(&branches.0) {
+            for (property, bit) in objects.properties.iter_mut().zip(&branches.bits) {
                 property.bit = *bit;
             }
-            objects.branches = branches.1;
+            (objects.branches, objects.named) = (branches.masks, branches.places);
         }
     }
 }
@@ -108,18 +108,26 @@ fn kinds(nodes: &[Node], id: Id) -> u8 {
     ALL
 }
 
+/// What `required` finds: every property's bit, each branch's names as those bits, and the
+/// places of the properties a branch names.
+struct Branches {
+    bits: Vec<u64>,
+    masks: Box<[u64]>,
+    places: Box<[usize]>,
+}
+
 /// For an object with one union beside it whose every branch only requires names the object's
 /// `properties` hold: each property's bit (its own where `required` gave it one, a free one
 /// where a branch names it) and each branch's names as those bits. `None` for any other node,
 /// or where the bits run out.
-fn required(nodes: &[Node], id: Id) -> Option<(Vec<u64>, Box<[u64]>)> {
+fn required(nodes: &[Node], id: Id) -> Option<Branches> {
     let Some(Node::Rules(rules)) = nodes.get(id) else {
         return None;
     };
     let objects = rules.object.as_ref().filter(|_| rules.lane == Lane::Both)?;
     let mut bits: Vec<u64> = objects.properties.iter().map(|p| p.bit).collect();
     let mut used = bits.iter().fold(0, |all, bit| all | bit);
-    let mut branches = vec![];
+    let (mut branches, mut places) = (vec![], vec![]);
     for branch in rules.any_of.iter().chain(&*rules.one_of) {
         let Some(Node::Rules(branch)) = nodes.get(*branch) else {
             return None;
@@ -136,6 +144,9 @@ fn required(nodes: &[Node], id: Id) -> Option<(Vec<u64>, Box<[u64]>)> {
             let place = (objects.properties)
                 .binary_search_by(|property| (*property.name).cmp(name))
                 .ok()?;
+            if !places.contains(&place) {
+                places.push(place);
+            }
             let bit = bits.get_mut(place)?;
             if *bit == 0 {
                 // The lowest bit no property has yet; none left is no list of branches.
@@ -146,7 +157,12 @@ fn required(nodes: &[Node], id: Id) -> Option<(Vec<u64>, Box<[u64]>)> {
         }
         branches.push(mask);
     }
-    Some((bits, branches.into_boxed_slice()))
+    let (masks, places) = (branches.into_boxed_slice(), places.into_boxed_slice());
+    Some(Branches {
+        bits,
+        masks,
+        places,
+    })
 }
 
 /// Whether node `id` holds strings it names and nothing else, each of them added to `names`.

@@ -318,3 +318,75 @@ fn a_ref_beside_keywords_is_held_as_the_whole_walk_holds_it() {
         }
     }
 }
+
+/// A `patternProperties` keyed by one whole name (`^name$`) is compiled as a property of that
+/// name: the object says what the whole walk says, beside a property of the same name too.
+#[test]
+fn a_pattern_that_is_one_name_is_held_as_a_property() {
+    let schemas = [
+        json!({"patternProperties": {"^id$": {"type": "integer"}, "^kind$": {"enum": ["a", "b"]}}, "additionalProperties": false}),
+        json!({"patternProperties": {"^id$": {"type": "integer"}, "^x-": {"type": "string"}}, "required": ["id"], "additionalProperties": false}),
+        json!({"properties": {"id": {"minimum": 2}}, "patternProperties": {"^id$": {"type": "integer"}, "^(id)$": {"maximum": 5}}, "additionalProperties": {"type": "null"}}),
+        json!({"patternProperties": {"^a.c$": {"type": "integer"}, "^a\\.c$": {"type": "string"}}, "unevaluatedProperties": false}),
+    ];
+    let values = [
+        json!({}),
+        json!({"id": 1}),
+        json!({"id": 3}),
+        json!({"id": 9}),
+        json!({"id": "x"}),
+        json!({"kind": "a"}),
+        json!({"kind": "c", "id": 1}),
+        json!({"x-a": "s", "id": 4}),
+        json!({"x-a": 1}),
+        json!({"ids": null}),
+        json!({"ids": 1}),
+        json!({"a.c": "s"}),
+        json!({"a.c": 1}),
+        json!({"abc": 1}),
+        json!({"abc": "s"}),
+        json!([]),
+    ];
+    for schema in &schemas {
+        let compiled = Schema::new(schema);
+        for value in &values {
+            let said = compiled.mismatches(value).is_empty();
+            assert_eq!(compiled.matches(value), said, "{schema} with {value}");
+        }
+    }
+    // What it holds is what the pattern holds: a name that only begins or ends so is another.
+    let strict = Schema::new(&schemas[0]);
+    assert!(strict.matches(&json!({"id": 1})) && !strict.matches(&json!({"id": "1"})));
+    assert!(!strict.matches(&json!({"id ": 1})) && !strict.matches(&json!({"ids": 1})));
+}
+
+/// An object held to dependencies beside its properties is read in one pass and then held to
+/// them: it says what the whole walk says, in the drafts that write them either way.
+#[test]
+fn an_object_with_dependencies_is_held_as_the_whole_walk_holds_it() {
+    let properties = json!({"a": {"type": "integer"}, "b": {"type": "string"}, "c": {}});
+    let schemas = [
+        json!({"$schema": "http://json-schema.org/draft-07/schema#", "properties": properties, "dependencies": {"a": ["b"], "b": {"required": ["c"], "properties": {"c": {"const": 1}}}}}),
+        json!({"properties": properties, "dependentRequired": {"a": ["b", "c"]}, "minProperties": 1}),
+        json!({"properties": properties, "dependentSchemas": {"c": {"properties": {"a": {"minimum": 5}}}}, "additionalProperties": false}),
+    ];
+    let values = [
+        json!({}),
+        json!({"a": 1}),
+        json!({"a": 1, "b": "x"}),
+        json!({"a": 1, "b": "x", "c": 1}),
+        json!({"b": "x", "c": 2}),
+        json!({"a": 7, "c": 1}),
+        json!({"a": 2, "c": 1}),
+        json!({"c": 1, "d": 1}),
+        json!({"a": "x", "b": "x", "c": 1}),
+        json!([]),
+    ];
+    for schema in &schemas {
+        let compiled = Schema::new(schema);
+        for value in &values {
+            let said = compiled.mismatches(value).is_empty();
+            assert_eq!(compiled.matches(value), said, "{schema} with {value}");
+        }
+    }
+}

@@ -10,6 +10,9 @@ use super::parse::Node;
 use super::shape::{Branch, nullable};
 use crate::text::same_bytes;
 
+/// The most words searched for in a text one after the other.
+const SEARCHED: usize = 4;
+
 /// A pattern checked without an automaton.
 pub(super) enum Simple {
     /// Every text matches: an alternative matches the empty text where it may start or end.
@@ -28,8 +31,9 @@ pub(super) struct Word {
 }
 
 pub(super) struct Run {
-    /// The ASCII characters of the class, bit `c` for `c`: most text is checked by it alone.
-    ascii: u128,
+    /// The ASCII characters of the class, bit `c` for `c`, as two words (a shift of one word
+    /// is one instruction; of two, several): most text is checked by them alone.
+    ascii: [u64; 2],
     class: Class,
     min: u32,
     max: Option<u32>,
@@ -63,7 +67,13 @@ pub(super) fn simple(branches: &[Branch<'_>]) -> Option<Simple> {
             words.push(word(branch, literal(branch.body)?));
         }
     }
-    Some(Simple::Words(words))
+    // Each word not held at both ends is searched for in turn: past a few, the automaton,
+    // which reads the text once whatever their number, is the cheaper.
+    let searched = words
+        .iter()
+        .filter(|word| !(word.start && word.end))
+        .count();
+    (searched <= SEARCHED).then_some(Simple::Words(words))
 }
 
 fn word(branch: &Branch<'_>, text: String) -> Word {
@@ -75,7 +85,7 @@ fn word(branch: &Branch<'_>, text: String) -> Word {
 }
 
 /// The text `nodes` match, when they match one text only.
-fn literal(nodes: &[Node]) -> Option<String> {
+pub(super) fn literal(nodes: &[Node]) -> Option<String> {
     let mut text = String::new();
     for node in nodes {
         match node {
@@ -97,7 +107,10 @@ fn run(branch: &Branch<'_>) -> Option<Run> {
         _ => return None,
     };
     Some(Run {
-        ascii: class.ascii(),
+        ascii: {
+            let half = |bits: u128| u64::try_from(bits & u128::from(u64::MAX)).unwrap_or(0);
+            [half(class.ascii()), half(class.ascii() >> 64)]
+        },
         class: class.clone(),
         min,
         max,
@@ -132,6 +145,14 @@ impl Word {
 }
 
 impl Run {
+    /// Whether the ASCII character `byte` is of the class.
+    #[inline(always)]
+    fn has(&self, byte: u8) -> bool {
+        let [low, high] = self.ascii;
+        let half = if byte < 64 { low } else { high };
+        half >> (byte & 63) & 1 != 0
+    }
+
     fn is_match(&self, text: &str) -> bool {
         // A run held at both ends is the whole text, whose length must stay within the bounds;
         // any other needs `min` characters only, as a match may stop before a longer run ends.
@@ -145,7 +166,7 @@ impl Run {
         // The whole of a text of ASCII alone, as most are: each byte is a character, asked of
         // the class's bits in one tight pass, and the text's length is its count.
         if whole {
-            let strays = |byte: &u8| *byte >= 0x80 || self.ascii >> *byte & 1 == 0;
+            let strays = |byte: &u8| *byte >= 0x80 || !self.has(*byte);
             match bytes.iter().position(strays).and_then(|at| bytes.get(at)) {
                 None => return u32::try_from(bytes.len()).is_ok_and(|len| len <= max),
                 Some(byte) if *byte < 0x80 => return false,
@@ -153,13 +174,33 @@ impl Run {
                 Some(_) => {}
             }
         }
+        // A run not held at both ends, in a text of ASCII alone: one tight pass, with only the
+        // run's length kept.
+        if !whole && text.is_ascii() {
+            let (min, [low, high]) = (self.min, self.ascii);
+            // Held at its start, the run is the text's first characters; at its end, its last.
+            if self.start {
+                let lead = bytes.iter().take_while(|byte| self.has(**byte)).count();
+                return u32::try_from(lead).is_ok_and(|lead| lead >= min);
+            }
+            let mut count: u32 = 0;
+            for &byte in bytes {
+                let half = if byte < 64 { low } else { high };
+                // One more where the byte is of the class, none where it is not, with no branch.
+                count = count.saturating_add(1) * u32::from(half >> (byte & 63) & 1 != 0);
+                if !self.end && count >= min {
+                    return true;
+                }
+            }
+            return count >= min;
+        }
         // The count only needs to reach the bounds: one held at u32::MAX is as good.
         let mut count: u32 = 0;
         let mut at = 0;
         while let Some(&byte) = bytes.get(at) {
             let held = if byte < 0x80 {
                 at += 1;
-                self.ascii >> byte & 1 != 0
+                self.has(byte)
             } else {
                 let Some(c) = text.get(at..).and_then(|rest| rest.chars().next()) else {
                     return false;

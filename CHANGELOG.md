@@ -50,7 +50,14 @@
   (its list of names, its tag, an `anyOf` or a `oneOf` branch by branch), where a branch that
   asks only for types holds a value of its kinds with no call. A `$ref` beside other keywords
   is followed by the way of what it lands on, and the keywords then go by the lane that is
-  theirs, where both went by the walk that can say what is wrong.
+  theirs, where both went by the walk that can say what is wrong. A `patternProperties` keyed
+  by one whole name (`^name$`) is a property of that name, found as one and not tried against
+  every field; any other pattern tells a name apart by the bytes its matches begin and end
+  with before its engine runs. An object held to dependencies is read in one pass like any
+  other. A pattern that is a run of one class (`[a-f0-9]{24}`) reads a text of ASCII in one
+  tight pass wherever it is held, and one of many words not held at both ends goes to the
+  automaton, which reads the text once. An array that asks only types is read in its own way
+  with no call beneath.
 - Every verdict and message is unchanged: the official suite, MaskBench and the quick loop's
   fingerprint say so.
 - `bench/quick/`: the loop a change is measured in first, in instructions, cycles and

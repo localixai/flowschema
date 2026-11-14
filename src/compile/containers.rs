@@ -7,7 +7,7 @@ use serde_json::Value;
 use super::Compiler;
 use super::keywords::count;
 use super::read::Keywords;
-use crate::node::{Arrays, Extra, Node, Objects, Property, Required};
+use crate::node::{Arrays, Extra, Id, Node, Objects, Property, Required};
 
 impl<'j> Compiler<'j> {
     pub(super) fn arrays(&mut self, k: &Keywords<'j>, base: &str) -> Option<Box<Arrays>> {
@@ -33,28 +33,62 @@ impl<'j> Compiler<'j> {
         }))
     }
 
+    /// `properties` in the order of their names, each with its bit in `required`, and
+    /// `patternProperties` as each pattern's place and node.
+    fn named(&mut self, k: &Keywords<'j>, base: &str) -> (Vec<Property>, Vec<(usize, Id)>) {
+        let wanted = listed(k.required);
+        let bit = |name: &str| {
+            let place = wanted.clone().position(|field| field == name);
+            place
+                .filter(|place| *place < 64)
+                .map_or(0, |place| 1 << place)
+        };
+        let named = k.properties.and_then(Value::as_object);
+        let mut properties = Vec::with_capacity(named.map_or(0, serde_json::Map::len));
+        for (name, schema) in named.into_iter().flatten() {
+            // What its node asks is told once every node is built (`flatten::settle`).
+            properties.push(Property {
+                name: name.as_str().into(),
+                id: self.node(schema, base),
+                bit: bit(name),
+                types: 0,
+            });
+        }
+        let mut patterns = vec![];
+        for (source, schema) in k
+            .pattern_properties
+            .and_then(Value::as_object)
+            .into_iter()
+            .flatten()
+        {
+            // A pattern that is one whole name (`^name$`) is a property of that name, found as
+            // one and not tried against every field; unless a property has the name already.
+            match crate::pattern::exact(source)
+                .filter(|name| !properties.iter().any(|p| *p.name == **name))
+            {
+                Some(name) => properties.push(Property {
+                    id: self.node(schema, base),
+                    bit: bit(&name),
+                    types: 0,
+                    name: name.into(),
+                }),
+                None => {
+                    let place = self.pattern(source);
+                    patterns.push((place, self.node(schema, base)));
+                }
+            }
+        }
+        // In order, as a data object's fields come: a walk meets both in one pass.
+        properties.sort_unstable_by(|a, b| a.name.cmp(&b.name));
+        (properties, patterns)
+    }
+
     pub(super) fn objects(&mut self, k: &Keywords<'j>, base: &str) -> Option<Box<Objects>> {
         if !k.of_objects() {
             return None;
         }
         let wanted = listed(k.required);
-        let named = k.properties.and_then(Value::as_object);
-        let mut properties = Vec::with_capacity(named.map_or(0, serde_json::Map::len));
-        for (name, schema) in named.into_iter().flatten() {
-            let place = wanted.clone().position(|field| field == name);
-            let bit = place
-                .filter(|place| *place < 64)
-                .map_or(0, |place| 1 << place);
-            // What its node asks is told once every node is built (`flatten::settle`).
-            properties.push(Property {
-                name: name.as_str().into(),
-                id: self.node(schema, base),
-                bit,
-                types: 0,
-            });
-        }
-        // In order, as a data object's fields come: a walk meets both in one pass.
-        properties.sort_unstable_by(|a, b| a.name.cmp(&b.name));
+        let (properties, patterns) = self.named(k, base);
         let required: Box<[Required]> = (wanted)
             .map(
                 |field| match properties.binary_search_by(|p| (*p.name).cmp(field)) {
@@ -65,16 +99,6 @@ impl<'j> Compiler<'j> {
             .collect();
         let bits = properties.iter().fold(0, |all, p| all | p.bit);
         let all_named = required.len() <= 64 && bits.count_ones() as usize == required.len();
-        let mut patterns = vec![];
-        for (source, schema) in k
-            .pattern_properties
-            .and_then(Value::as_object)
-            .into_iter()
-            .flatten()
-        {
-            let place = self.pattern(source);
-            patterns.push((place, self.node(schema, base)));
-        }
         let extra = match k.additional_properties {
             None => Extra::Absent,
             Some(Value::Bool(true)) => Extra::Allowed,
@@ -111,14 +135,11 @@ impl<'j> Compiler<'j> {
             || !dependent.is_empty()
             || !dependent_schemas.is_empty();
         let names = k.property_names.map(|schema| self.node(schema, base));
-        let counted = names.is_none()
-            && patterns.is_empty()
-            && dependent.is_empty()
-            && dependent_schemas.is_empty();
+        let ordered = names.is_none() && patterns.is_empty();
         Some(Box::new(Objects {
             closing,
-            simple: counted && !closing,
-            counted,
+            simple: ordered && !closing,
+            ordered,
             lookup: crate::hash::Names::of(&properties),
             required,
             properties: properties.into_boxed_slice(),
@@ -127,6 +148,7 @@ impl<'j> Compiler<'j> {
             extra,
             extra_types: 0,
             branches: Box::default(),
+            named: Box::default(),
             names,
             min_fields,
             max_fields,
