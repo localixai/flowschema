@@ -141,6 +141,25 @@ impl Schema {
         said
     }
 
+    /// Whether a call still being written can still come to match: `written` is the text so
+    /// far, and the answer is false only where no ending mends it (a field the schema refuses,
+    /// a value written whole that is not what its field asks, a string no option begins with).
+    /// A stream is stopped at the first false; what only the whole value tells (a union, a
+    /// field still to come) is left to `matches`.
+    pub fn may_match(&self, written: &str) -> bool {
+        let Some(cut) = cut::cut(written) else {
+            // Not yet the start of a value (a word half written), or never one.
+            return !written.contains(['{', '[']);
+        };
+        match (cut.whole, &cut.value, cut.path) {
+            // A number at the root may go on.
+            (true, Value::Number(_), _) => true,
+            (true, value, _) => self.matches(value),
+            (false, value, Some(path)) => self.walk().may_hold(0, value, &path, cut.text, 0),
+            (false, _, None) => true,
+        }
+    }
+
     /// What the schema asks that is not checked here, each named once.
     pub fn unchecked(&self) -> Vec<&'static str> {
         self.notes.clone()

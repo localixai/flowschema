@@ -12,9 +12,11 @@ and it binds an agent as it binds a person. This file says where things are and 
 - `src/`: the library, one idea per file. `lib.rs` is the API (`Schema`); `draft.rs` reads the
   draft; `compile.rs` and `compile/` build the nodes (`node.rs`): `read.rs` reads an object's
   keywords in one pass, `leaves.rs` finds the leaves a walk settles where it stands, `flatten.rs`
-  names each child where its `$ref` lands; `index.rs` and `uri.rs` resolve references;
+  names each child where its `$ref` lands, `unions.rs` finds the unions that are one list of
+  names; `index.rs` and `uri.rs` resolve references;
   `validate.rs` and `validate/` walk the data (`lanes.rs` the quick walk's shortest ways,
-  `objects.rs` an object in the order of its fields); `fit.rs` fits a schema to a provider's
+  `objects.rs` an object in the order of its fields, `partial.rs` a call still being
+  written); `fit.rs` fits a schema to a provider's
   strict mode, `cut.rs` reads a text the output limit cut off, `mend.rs` reads what a model
   wrote as it meant it; `format.rs`, `pattern.rs`, `number.rs`, `hash.rs` and `text.rs` check
   what their names say; `report.rs` writes the messages. Each `x.rs` has its tests in

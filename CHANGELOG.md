@@ -8,6 +8,8 @@
 - **`fit(schema, Provider)`**: a schema as a provider's strict mode takes it (OpenAI, Anthropic,
   Gemini), with what the provider does not hold taken out, what it asks of every object set,
   and every change said; the answer is still checked against the schema as written.
+- **`Schema::may_match(written)`**: whether a call still being written can still end in a
+  match, false only where no ending mends it, so a stream is stopped at the first false.
 - **`whole(text)`**: what a JSON text the output limit cut off wrote whole, the string it stops
   in closed, what is open closed, what the cut left unfinished left out.
 - **`Schema::mend(&mut data)`**: what a model wrote read as it meant it where the schema leaves
@@ -26,7 +28,10 @@
   A node that is an object, an array or a union and no more is walked by a lane of its own,
   with no report and no keyword asked that it does not have. A `$ref` in a schema of draft 7 or
   earlier is followed as directly as in a later one. A union picks its branch by its tag with no
-  iterator in between. An `enum`'s strings, a field's name and a
+  iterator in between. A union of names (an `anyOf` or a `oneOf` of `enum`s of strings and
+  string `const`s, as a list of scopes or an `enum` with titles is written) is one list a quick
+  check looks its string up in. A `multipleOf` spells its divisor once, as the schema is
+  compiled, and a whole number not at all. An `enum`'s strings, a field's name and a
   tag's value are compared inline, with no call to `memcmp`.
 - Every verdict and message is unchanged: the official suite, MaskBench and the quick loop's
   fingerprint say so.

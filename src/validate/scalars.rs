@@ -5,7 +5,6 @@ use serde_json::Value;
 
 use super::Walk;
 use crate::node::{Rules, TypeList};
-use crate::number;
 use crate::report::{At, Report, said, short, type_of};
 
 impl Walk<'_> {
@@ -84,8 +83,8 @@ pub(super) fn bounds<const F: bool>(
         }
     }
     match &rules.multiple {
-        Some(m) if !number::multiple(n, m) => {
-            r.no(|| said!("{at} must be a multiple of {m} (is {n})"))
+        Some(m) if !m.divides(n) => {
+            r.no(|| said!("{at} must be a multiple of {} (is {n})", m.said))
         }
         Some(_) | None => true,
     }

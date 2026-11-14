@@ -7,6 +7,7 @@ mod containers;
 mod cursor;
 mod lanes;
 mod objects;
+mod partial;
 mod scalars;
 mod shortcut;
 mod unevaluated;

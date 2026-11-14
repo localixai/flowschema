@@ -583,3 +583,24 @@ fn property_names_false_refuses_every_field_and_says_where() {
     );
     assert!(problems(json!({"not": schema}), json!({"a": 1})).is_empty());
 }
+
+#[test]
+fn a_whole_number_is_held_to_a_decimal_divisor_exactly() {
+    // The divisor is spelled once, and a whole number not at all: the answers are the same.
+    let cents = json!({"multipleOf": 0.01});
+    for whole in [
+        json!(10000.0),
+        json!(25),
+        json!(0),
+        json!(-3.0),
+        json!(9007199254740993_u64),
+    ] {
+        assert!(problems(cents.clone(), whole.clone()).is_empty(), "{whole}");
+    }
+    let odd = json!({"multipleOf": 0.4});
+    assert!(problems(odd.clone(), json!(2)).is_empty());
+    assert_eq!(
+        problems(odd, json!(3.0)),
+        ["data must be a multiple of 0.4 (is 3.0)"]
+    );
+}

@@ -2,7 +2,7 @@
 
 <p align="center">
   <strong>JSON Schema for agents: tool calls and structured output, checked as models write them</strong><br>
-  Drafts 4 to 2020-12 · 2 dependencies · 293 KB · no allocation on a check · a request checked 7.9× faster than jsonschema
+  Drafts 4 to 2020-12 · 2 dependencies · 293 KB · no allocation on a check · a request checked 7.6× faster than jsonschema
 </p>
 
 <p align="center">
@@ -57,14 +57,14 @@ assert!(schema.unchecked().is_empty());
 
 - **Made for a schema that comes with the request.** An agent's schemas arrive at run time,
   often one with every request, so what a request costs is its schema compiled and one answer
-  checked. For a tool call that is 493 ns, where the `jsonschema` crate takes 3.89 µs (7.9×);
-  for a structured answer, 1.17 µs against 6.28 µs (5.4×). The schema is read where it is and
+  checked. For a tool call that is 554 ns, where the `jsonschema` crate takes 4.18 µs (7.6×);
+  for a structured answer, 1.33 µs against 7.09 µs (5.3×). The schema is read where it is and
   not copied, so there is no cache to keep.
 - **Fast to compile, fast to check.** On MaskBench's 11,306 schemas of real LLM tasks
-  flowschema compiles 3.77× faster than `jsonschema` (123.8 ms against 467.2 ms) and checks
-  every answer of the 9,779 both check whole 1.37× faster (3.10 ms against 4.25 ms), both built
-  for speed. Once compiled, a review's verdict is checked in 119 ns and a union of 64 tool calls
-  in 1.87 µs, beside 166 ns and 2.92 µs; no typical check, compile, request or message is slower.
+  flowschema compiles 3.75× faster than `jsonschema` (126.6 ms against 474.5 ms) and checks
+  every answer of the 9,779 both check whole 1.40× faster (3.09 ms against 4.33 ms), both built
+  for speed. Once compiled, a review's verdict is checked in 124 ns and a union of 64 tool calls
+  in 1.87 µs, beside 180 ns and 2.84 µs; no typical check, compile, request or message is slower.
 - **No allocation.** A check allocates nothing, valid data or not; the benchmarks count every
   allocation and fail a run that makes one.
 - **Messages a model can act on.** Each says where the value is, the rule it breaks and what the
@@ -72,8 +72,9 @@ assert!(schema.unchecked().is_empty());
 - **Fitted to a provider.** A strict mode holds a model to part of JSON Schema: `fit` gives the
   schema OpenAI, Anthropic or Gemini takes and says what it lost, and the answer is still
   checked against the schema as written.
-- **What models really send.** `whole` gives what a call the output limit cut off wrote whole;
-  `mend` reads `"30"` as the integer the schema asks for, and says so.
+- **What models really send.** `may_match` says of a call still streaming whether it can still
+  match; `whole` gives what a call the output limit cut off wrote whole; `mend` reads `"30"` as
+  the integer the schema asks for, and says so.
 - **Complete.** Every one of the 7,675 tests of the official JSON-Schema-Test-Suite it checks
   passes, on every draft from 4 to 2020-12, `format` asserted, and 36,984 of MaskBench's 36,990
   answers (99.98%) are judged as labelled. What it does not check, it names: a schema is never
@@ -94,8 +95,8 @@ Every figure, its method and where `jsonschema` suits better are in
 ## Documentation
 
 [In an agent](docs/agents.md): tool calls, structured answers, a schema with every request,
-what agents' schemas ask, a schema fitted to a provider's strict mode, cut-off calls, what a
-model wrote read as it meant it · [API](docs/api.md) · [conformance](docs/conformance.md): what
+what agents' schemas ask, a schema fitted to a provider's strict mode, calls as they stream
+and cut off, what a model wrote read as it meant it · [API](docs/api.md) · [conformance](docs/conformance.md): what
 is checked, the official suite, real LLM tasks · [comparison](docs/comparison.md): every
 benchmark, how it is fast · [releases](CHANGELOG.md)
 

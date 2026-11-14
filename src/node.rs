@@ -51,7 +51,7 @@ pub(crate) struct Rules {
     pub(crate) condition: Option<(Id, Option<Id>, Option<Id>)>,
     /// The number bounds in the order they are said, and `multipleOf`.
     pub(crate) limits: Box<[(Number, Sign)]>,
-    pub(crate) multiple: Option<Number>,
+    pub(crate) multiple: Option<number::Divisor>,
     pub(crate) min_length: Option<u64>,
     pub(crate) max_length: Option<u64>,
     /// `pattern`: its place among the schema's patterns.
@@ -73,6 +73,8 @@ pub(crate) struct Rules {
     pub(crate) leaf: Leaf,
     /// The lane the quick walk takes through the node (`Lane`).
     pub(crate) lane: Lane,
+    /// The strings a union of names holds, where the node is one (`compile/unions.rs`).
+    pub(crate) listed: Option<Box<crate::hash::Listed>>,
     /// The node this one only refers to, where a `$ref` is all it asks.
     pub(crate) alias: Option<Id>,
     /// An array that asks only its type, its count and its items' types: the quick walk reads

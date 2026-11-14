@@ -185,7 +185,9 @@ assert_eq!(Schema::new(&written).mismatches(&answer), ["data.limit must be >= 1 
 
 For OpenAI's strict mode every property becomes required, and one that was optional may be null
 instead; a `oneOf` is sent as an `anyOf`; for Gemini a `const` is sent as an `enum` of one value.
-The rules are the providers' documentation as it read in November 2026.
+The rules are the providers' documentation as it read in November 2026, not a trial of their
+APIs. A schema a provider refuses whole is not made into one it takes: a root that is not an
+object for OpenAI, a schema that refers to itself for Anthropic.
 
 ## A call the output limit cut off
 
@@ -207,6 +209,33 @@ assert_eq!(whole(cut), Some(json!({"path": "src/lib.rs", "content": "fn main() {
 
 What it gives is a value like any other: check it against the schema to learn which fields came
 whole and which are still missing.
+
+## A call as it streams
+
+A call's arguments arrive in pieces. `may_match` says, of the text so far, whether it can still
+end in a match: false only where no ending mends it, so a stream can be stopped at the first
+false and the model told why, without waiting for the rest.
+
+```rust
+use flowschema::Schema;
+use serde_json::json;
+
+let tool = Schema::new(&json!({"type": "object", "required": ["path"],
+    "additionalProperties": false,
+    "properties": {"path": {"type": "string"}, "mode": {"enum": ["read", "write"]}}}));
+
+// Still open: the path may yet come, and "re" may become "read".
+assert!(tool.may_match(r#"{"mode": "re"#));
+// No ending mends these: no option begins so, and the schema refuses the field.
+assert!(!tool.may_match(r#"{"mode": "x"#));
+assert!(!tool.may_match(r#"{"path": "a", "force": true,"#));
+```
+
+It asks only what more text cannot change: the kind of a value, a field the schema refuses, a
+value written whole that is not what its place asks, a string no option begins with, a list
+already too long. What an ending may mend (a required field still to come) and what only the
+whole value tells (a union, a `not`, a pattern over a field's name) are left to `matches`: the
+answer errs towards yes, and every beginning of a call that matches is let through.
 
 ## What a model wrote, read as it meant it
 
@@ -254,7 +283,5 @@ on any thread: keep it in an `Arc` beside the tool it belongs to.
 
 What an agent does with JSON beyond this, planned for the next releases:
 
-- **Calls as they stream.** A call's arguments arrive in pieces: whether what came so far can
-  still match, said before the call is whole.
 - **More of what models write.** `null` for an optional field the schema does not let be null,
   an `enum` value in another case: read as the model meant them, and said so.

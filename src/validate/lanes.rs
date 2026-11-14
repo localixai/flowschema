@@ -50,9 +50,15 @@ impl Walk<'_> {
                     && (arrays.rest)
                         .is_none_or(|rest| items.iter().all(|item| self.holds(rest, item, 0)))
             }
-            (Lane::Union, _, _, _) => match rules.any_of.is_empty() {
-                false => self.matched(&rules.any_of, rules.any_tag.as_deref(), value, refs, 1) > 0,
-                true => self.matched(&rules.one_of, rules.one_tag.as_deref(), value, refs, 2) == 1,
+            (Lane::Union, _, _, _) => match (&rules.listed, rules.any_of.is_empty()) {
+                // A union of names holds the strings of its list and nothing else.
+                (Some(listed), _) => value.as_str().is_some_and(|text| listed.holds(text)),
+                (None, false) => {
+                    self.matched(&rules.any_of, rules.any_tag.as_deref(), value, refs, 1) > 0
+                }
+                (None, true) => {
+                    self.matched(&rules.one_of, rules.one_tag.as_deref(), value, refs, 2) == 1
+                }
             },
             (Lane::Walk | Lane::Object | Lane::Array, _, _, _) => {
                 self.node(id, value, &At::Root, Report::quiet(), refs)

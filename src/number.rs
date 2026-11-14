@@ -116,37 +116,57 @@ pub(crate) fn exact(f: f64) -> Option<i128> {
     })
 }
 
-/// Whether `n` divides by `m` with no remainder: integers by their remainder, others exactly in
-/// decimal where both fit, else by their quotient.
-pub(crate) fn multiple(n: &Number, m: &Number) -> bool {
-    if let (Some(n), Some(m)) = (n.as_i64(), m.as_i64()) {
-        // A divisor of 0 (no schema's) divides nothing out; `checked_rem` spares `MIN % -1`.
-        return n.checked_rem(m).is_none_or(|rest| rest == 0);
+/// A `multipleOf`: the divisor as the schema writes it, and its decimal parts, spelled once as
+/// the schema is compiled and not again for each number held to it.
+pub(crate) struct Divisor {
+    pub(crate) said: Number,
+    parts: Option<(i128, u32)>,
+}
+
+impl Divisor {
+    pub(crate) fn new(said: &Number) -> Self {
+        let parts = said.as_f64().and_then(decimal);
+        let said = said.clone();
+        Self { said, parts }
     }
-    // A whole divisor, however written (`1.0`), of a whole number: the remainder, exactly.
-    let whole_of = |x: &Number| whole(x).or_else(|| x.as_f64().and_then(exact));
-    if let (Some(n), Some(m)) = (whole_of(n), whole_of(m)) {
-        return n.checked_rem(m).is_none_or(|rest| rest == 0);
-    }
-    let (Some(nf), Some(mf)) = (n.as_f64(), m.as_f64()) else {
-        return true;
-    };
-    if mf <= 0.0 {
-        return true;
-    }
-    if let (Some((nm, nd)), Some((mm, md))) = (decimal(nf), decimal(mf))
-        && mm != 0
-    {
-        // n / m = (nm * 10^md) / (mm * 10^nd), the shared powers of ten cancelled first.
-        let shared = nd.min(md);
-        let scale = |mantissa: i128, places: u32| {
-            mantissa.checked_mul(10_i128.checked_pow(places - shared)?)
-        };
-        if let (Some(a), Some(b)) = (scale(nm, md), scale(mm, nd)) {
-            return a % b == 0;
+
+    /// Whether `n` divides by the divisor with no remainder: integers by their remainder,
+    /// others exactly in decimal where both fit, else by their quotient.
+    pub(crate) fn divides(&self, n: &Number) -> bool {
+        let m = &self.said;
+        if let (Some(n), Some(m)) = (n.as_i64(), m.as_i64()) {
+            // A divisor of 0 (no schema's) divides nothing out; `checked_rem` spares `MIN % -1`.
+            return n.checked_rem(m).is_none_or(|rest| rest == 0);
         }
+        // A whole divisor, however written (`1.0`), of a whole number: the remainder, exactly.
+        let whole_of = |x: &Number| whole(x).or_else(|| x.as_f64().and_then(exact));
+        let whole_n = whole_of(n);
+        if let (Some(n), Some(m)) = (whole_n, whole_of(m)) {
+            return n.checked_rem(m).is_none_or(|rest| rest == 0);
+        }
+        let (Some(nf), Some(mf)) = (n.as_f64(), m.as_f64()) else {
+            return true;
+        };
+        if mf <= 0.0 {
+            return true;
+        }
+        // A whole number is its own mantissa: only a fraction is spelled to be read.
+        let spelled = || whole_n.map(|whole| (whole, 0)).or_else(|| decimal(nf));
+        if let Some((mm, md)) = self.parts
+            && mm != 0
+            && let Some((nm, nd)) = spelled()
+        {
+            // n / m = (nm * 10^md) / (mm * 10^nd), the shared powers of ten cancelled first.
+            let shared = nd.min(md);
+            let scale = |mantissa: i128, places: u32| {
+                mantissa.checked_mul(10_i128.checked_pow(places - shared)?)
+            };
+            if let (Some(a), Some(b)) = (scale(nm, md), scale(mm, nd)) {
+                return a % b == 0;
+            }
+        }
+        (nf / mf).fract() == 0.0
     }
-    (nf / mf).fract() == 0.0
 }
 
 /// `x` as its shortest decimal spelling, a mantissa and its places after the point (`0.0075` is

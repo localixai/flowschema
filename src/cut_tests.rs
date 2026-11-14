@@ -46,3 +46,31 @@ fn what_is_no_start_of_json_is_nothing() {
         assert_eq!(whole(text), None, "{text}");
     }
 }
+
+#[test]
+fn where_the_text_was_still_writing_is_told() {
+    let key = |name: &str| Step::Key(name.to_string());
+    for (text, path, in_text) in [
+        // Inside a string, down to it; after a whole value, down to what holds it.
+        (r#"{"a": {"b": "x"#, vec![key("a"), key("b")], true),
+        (r#"{"a": {"b": true"#, vec![key("a")], false),
+        (
+            r#"{"a": [1, {"b\"c": "x"#,
+            vec![key("a"), Step::Index(1), key("b\"c")],
+            true,
+        ),
+        // What the cut left unfinished is left out, and with it the step into it.
+        (r#"{"a": [1, 2"#, vec![key("a")], false),
+        (r#"{"a": 1, "b"#, vec![], false),
+        (r#""x"#, vec![], true),
+    ] {
+        let cut = cut(text).unwrap();
+        assert_eq!(
+            (cut.path, cut.text, cut.whole),
+            (Some(path), in_text, false),
+            "{text}"
+        );
+    }
+    let cut = cut(r#"{"a": 1}"#).unwrap();
+    assert!(cut.whole && !cut.text);
+}

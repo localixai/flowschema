@@ -11,6 +11,7 @@ mod kinds;
 mod leaves;
 mod read;
 pub(crate) mod tags;
+mod unions;
 
 use std::collections::HashMap;
 
@@ -20,7 +21,8 @@ use crate::draft::Draft;
 use crate::format;
 use crate::hash::Table;
 use crate::index::Index;
-use crate::node::{HAS_KIND, Id, Node, Rules, kind_of};
+use crate::node::{HAS_KIND, Id, Lane, Node, Rules, kind_of};
+use crate::number::Divisor;
 use crate::uri::{self, BASE};
 
 use keywords::{count, limits, types};
@@ -45,6 +47,7 @@ pub(crate) fn compile(root: &Value, documents: &[(String, Value)]) -> Compiled {
         documents,
         index: None,
         nodes: vec![],
+        unions: false,
         refs: HashMap::new(),
         patterns: vec![],
         notes: vec![],
@@ -54,6 +57,9 @@ pub(crate) fn compile(root: &Value, documents: &[(String, Value)]) -> Compiled {
     kinds::fold(&mut compiler.nodes);
     evaluated::settle(&mut compiler.nodes);
     flatten::settle(&mut compiler.nodes, !compiler.refs.is_empty());
+    if compiler.unions {
+        unions::settle(&mut compiler.nodes);
+    }
     Compiled {
         nodes: compiler.nodes,
         patterns: compiler.patterns,
@@ -95,6 +101,8 @@ struct Compiler<'j> {
     /// (most of an agent's) is never walked for it.
     index: Option<Index<'j>>,
     nodes: Vec<Node>,
+    /// Whether any node is a union and nothing else: only then are unions of names looked for.
+    unions: bool,
     /// Each schema a `$ref` landed on, by its address: landed on again, it is the same node.
     refs: HashMap<usize, Id>,
     patterns: Vec<Box<str>>,
@@ -235,7 +243,7 @@ impl<'j> Compiler<'j> {
             condition,
             limits: limits(k, draft),
             multiple: match k.multiple_of {
-                Some(Value::Number(m)) => Some(m.clone()),
+                Some(Value::Number(m)) => Some(Divisor::new(m)),
                 Some(_) | None => None,
             },
             min_length: count(k.min_length),
@@ -273,6 +281,7 @@ impl<'j> Compiler<'j> {
         // types first, so a leaf found here is never asked of it.
         built.leaf = leaves::leaf(&built);
         built.lane = leaves::lane(&built);
+        self.unions |= built.lane == Lane::Union;
         built
     }
 

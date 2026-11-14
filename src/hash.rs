@@ -234,6 +234,24 @@ impl Names {
     }
 }
 
+/// The strings a union of names holds: its list, and the table they are looked up in where
+/// there are many.
+pub(crate) struct Listed {
+    pub(crate) options: Vec<Value>,
+    pub(crate) table: Option<Table>,
+}
+
+impl Listed {
+    /// Whether `text` is one of the strings.
+    pub(crate) fn holds(&self, text: &str) -> bool {
+        match &self.table {
+            Some(table) => table.holds_text(&self.options, text),
+            None => (self.options.iter())
+                .any(|option| option.as_str().is_some_and(|known| known == text)),
+        }
+    }
+}
+
 #[cfg(test)]
 #[path = "hash_tests.rs"]
 mod tests;
