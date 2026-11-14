@@ -56,6 +56,9 @@ pub(super) fn leaf(rules: &Rules) -> Leaf {
 }
 
 /// The lane the quick walk takes through `rules`.
+/// An object's keywords with a combination beside them.
+const BOTH: u8 = HAS_OBJECT | HAS_COMBINED;
+
 pub(super) fn lane(rules: &Rules) -> Lane {
     let unevaluated = rules.unevaluated_fields.is_some() || rules.unevaluated_items.is_some();
     let bare = rules.reference.is_none()
@@ -67,6 +70,10 @@ pub(super) fn lane(rules: &Rules) -> Lane {
     let patterned = (rules.object.as_ref()).is_some_and(|objects| {
         !objects.patterns.is_empty() && objects.names.is_none() && !objects.closing
     });
+    // Names no property, and holds every field to one schema.
+    let map = (rules.object.as_ref()).is_some_and(|objects| {
+        objects.properties.is_empty() && matches!(objects.extra, Extra::Checked(_))
+    });
     // Held to the names it requires and to nothing of its fields.
     let named = (rules.object.as_ref()).is_some_and(|objects| {
         objects.properties.is_empty() && matches!(objects.extra, Extra::Absent | Extra::Allowed)
@@ -74,28 +81,30 @@ pub(super) fn lane(rules: &Rules) -> Lane {
     let array = (rules.array.as_ref()).is_some_and(|arrays| {
         arrays.prefix.is_empty() && !arrays.unique && arrays.contains.is_none()
     });
-    // One of the two unions, with no keyword beside it.
-    let union = rules.has == HAS_COMBINED
-        && rules.all_of.is_empty()
+    // One of the two unions and no other combination: alone, or beside an object's keywords.
+    let one_union = rules.all_of.is_empty()
         && rules.not.is_none()
         && rules.condition.is_none()
         && rules.any_of.is_empty() != rules.one_of.is_empty();
+    let union = one_union && rules.has & !(HAS_KIND | BOTH) == 0;
     // One combination alone, with not even a `type` beside it.
     let alone = rules.has == HAS_COMBINED && rules.condition.is_none();
     let unions = rules.any_of.is_empty() && rules.one_of.is_empty();
     let (all, not) = (!rules.all_of.is_empty(), rules.not.is_some());
     match (bare, own) {
         (true, HAS_OBJECT) if object && named => Lane::Required,
+        (true, HAS_OBJECT) if object && map => Lane::Map,
         (true, HAS_OBJECT) if object => Lane::Object,
         (true, HAS_OBJECT) if patterned => Lane::Patterned,
         (true, HAS_OBJECT) => Lane::Fields,
         (true, HAS_ARRAY) if array => Lane::Array,
         (true, HAS_ARRAY) => Lane::Items,
-        (true, HAS_COMBINED) if union => Lane::Union,
+        (true, HAS_COMBINED) if union && rules.has == HAS_COMBINED => Lane::Union,
         (true, HAS_COMBINED) if alone && unions && not && !all => Lane::Not,
         (true, HAS_COMBINED) if alone && unions && all && !not => Lane::All,
         (true, HAS_NUMBER) => Lane::Number,
         (true, HAS_STRING) => Lane::Text,
+        (true, HAS_COMBINED | BOTH) if union && (object || rules.object.is_none()) => Lane::Both,
         (false, 0) if rules.reference.is_none() && !unevaluated => Lane::Kind,
         (true | false, _) => Lane::Walk,
     }

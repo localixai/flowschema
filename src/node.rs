@@ -214,6 +214,10 @@ pub(crate) enum Lane {
     Required,
     /// `type`, and an object held to `patternProperties` beside what `Object` is held to.
     Patterned,
+    /// `type`, and an object that names no property and holds every field to one schema: a map.
+    Map,
+    /// `type`, an object as `Object` reads it (or none), and one union beside it.
+    Both,
 }
 
 /// What an array that asks only its type, its count and its items' types asks.
@@ -355,6 +359,9 @@ pub(crate) struct Objects {
     /// `propertyNames`, no `patternProperties`, nothing `closing`): most objects, which the
     /// quick walk reads in one pass (`Walk::in_order`).
     pub(crate) simple: bool,
+    /// The types every other field is held to, where `extra` is a node of types alone (a map
+    /// of strings, say): told here as a property is told its own (`compile/flatten.rs`).
+    pub(crate) extra_types: u8,
 }
 
 impl Objects {

@@ -120,6 +120,7 @@ impl<'j> Compiler<'j> {
             required_bits: all_named.then_some(bits),
             patterns: patterns.into_boxed_slice(),
             extra,
+            extra_types: 0,
             names,
             min_fields,
             max_fields,

@@ -121,9 +121,6 @@ impl Walk<'_> {
         if open && fields.len() > objects.properties.len() {
             return self.named(objects, object, fields, at, r, bits);
         }
-        if let Some(ok) = self.only_extra(objects, object, fields, at, r) {
-            return ok;
-        }
         let unread = open && objects.properties.is_empty();
         let sparse = objects.properties.len() > fields.len().saturating_mul(4);
         let mut met = 0;

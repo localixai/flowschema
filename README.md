@@ -57,14 +57,14 @@ assert!(schema.unchecked().is_empty());
 
 - **Made for a schema that comes with the request.** An agent's schemas arrive at run time,
   often one with every request, so what a request costs is its schema compiled and one answer
-  checked. For a tool call that is 518 ns, where the `jsonschema` crate takes 3.95 µs (7.6×);
-  for a structured answer, 1.24 µs against 6.43 µs (5.2×). The schema is read where it is and
+  checked. For a tool call that is 569 ns, where the `jsonschema` crate takes 4.32 µs (7.6×);
+  for a structured answer, 1.49 µs against 7.04 µs (4.7×). The schema is read where it is and
   not copied, so there is no cache to keep.
 - **Fast to compile, fast to check.** On MaskBench's 11,306 schemas of real LLM tasks
-  flowschema compiles 3.69× faster than `jsonschema` (125.0 ms against 461.4 ms) and checks
-  every answer of the 9,779 both check whole 1.63× faster (2.59 ms against 4.23 ms), both built
-  for speed. Once compiled, a review's verdict is checked in 110 ns and a union of 64 tool calls
-  in 1.66 µs, beside 165 ns and 2.70 µs; no typical check, compile, request or message is slower.
+  flowschema compiles 3.67× faster than `jsonschema` (128.0 ms against 469.9 ms) and checks
+  every answer of the 9,779 both check whole 1.74× faster (2.44 ms against 4.25 ms), both built
+  for speed. Once compiled, a review's verdict is checked in 93 ns and a union of 64 tool calls
+  in 1.77 µs, beside 162 ns and 3.17 µs; no typical check, compile, request or message is slower.
 - **No allocation.** A check allocates nothing, valid data or not; the benchmarks count every
   allocation and fail a run that makes one.
 - **Messages a model can act on.** Each says where the value is, the rule it breaks and what the

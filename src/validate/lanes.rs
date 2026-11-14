@@ -19,13 +19,23 @@ impl Walk<'_> {
     /// the shortest way the node allows. A node of rules is walked by the way chosen for it as
     /// the schema was compiled (`way`): one call, with no question asked here of what the node
     /// is, so a way added for one shape of node costs no other node anything.
-    #[inline(never)]
+    #[inline(always)]
     pub(crate) fn holds(&self, id: Id, value: &Value, refs: usize) -> bool {
         match self.nodes.get(id) {
             Some(Node::Rules(rules)) => (rules.way.0)(self, id, rules, value, refs),
-            Some(Node::Types(types, _)) => self.has_type(*types, value),
-            Some(Node::Never) => false,
-            Some(Node::Any) | None => true,
+            Some(node) => self.plain_node(node, value),
+            None => true,
+        }
+    }
+
+    /// `holds` for a node that is no node of rules: a call of its own, so that `holds` is no
+    /// more where it is called than a look at the node and a call.
+    #[inline(never)]
+    fn plain_node(&self, node: &Node, value: &Value) -> bool {
+        match node {
+            Node::Types(types, _) => self.has_type(*types, value),
+            Node::Never => false,
+            Node::Any | Node::Rules(_) => true,
         }
     }
 
@@ -96,6 +106,8 @@ fn by_lane(lane: Lane) -> Way {
         Lane::Kind => kind,
         Lane::Required => required,
         Lane::Patterned => patterned,
+        Lane::Map => map,
+        Lane::Both => both,
         Lane::Walk => rest,
     }
 }
@@ -195,6 +207,29 @@ fn required(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, _: usize) -> b
     }
 }
 
+/// A map: every field held to one schema, by its types where they are all the schema asks.
+fn map(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, _: usize) -> bool {
+    match (value, &rules.object) {
+        (Value::Object(fields), Some(objects)) => {
+            let held = |value: &Value| match (objects.extra_types, &objects.extra) {
+                (0, Extra::Checked(id)) => walk.holds(*id, value, 0),
+                (0, Extra::Absent | Extra::Allowed | Extra::Refused) => true,
+                (types, _) => walk.has_type(types, value),
+            };
+            rules.types.is_none_or(|types| types & OBJECT != 0)
+                && (objects.required.iter())
+                    .all(|it| fields.contains_key(objects.required_name(it)))
+                && fields.values().all(held)
+        }
+        (_, _) => rules.types.is_none_or(|types| walk.has_type(types, value)),
+    }
+}
+
+/// An object as `object` reads it (or a type alone), and the one union beside it.
+fn both(walk: &Walk<'_>, id: Id, rules: &Rules, value: &Value, refs: usize) -> bool {
+    object(walk, id, rules, value, refs) && union(walk, id, rules, value, refs)
+}
+
 /// An object held to patterns for its names (`Walk::patterned`).
 fn patterned(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, _: usize) -> bool {
     match (value, &rules.object) {
@@ -238,11 +273,23 @@ fn kind(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, _: usize) -> bool 
 }
 
 fn union(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, refs: usize) -> bool {
-    match (&rules.listed, rules.any_of.is_empty()) {
+    let tagged = rules.any_tag.is_some() || rules.one_tag.is_some();
+    match (&rules.listed, rules.any_of.is_empty(), tagged) {
         // A union of names holds the strings of its list and nothing else.
-        (Some(listed), _) => value.as_str().is_some_and(|text| listed.holds(text)),
-        (None, false) => walk.matched(&rules.any_of, rules.any_tag.as_deref(), value, refs, 1) > 0,
-        (None, true) => walk.matched(&rules.one_of, rules.one_tag.as_deref(), value, refs, 2) == 1,
+        (Some(listed), _, _) => value.as_str().is_some_and(|text| listed.holds(text)),
+        // With no tag to pick a branch by, each is tried in turn: the first that holds
+        // settles an `anyOf`, a second one a `oneOf`.
+        (None, false, false) => (rules.any_of.iter()).any(|id| walk.holds(*id, value, refs)),
+        (None, true, false) => {
+            let mut held = (rules.one_of.iter()).filter(|id| walk.holds(**id, value, refs));
+            held.next().is_some() && held.next().is_none()
+        }
+        (None, false, true) => {
+            walk.matched(&rules.any_of, rules.any_tag.as_deref(), value, refs, 1) > 0
+        }
+        (None, true, true) => {
+            walk.matched(&rules.one_of, rules.one_tag.as_deref(), value, refs, 2) == 1
+        }
     }
 }
 

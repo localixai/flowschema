@@ -34,6 +34,25 @@ pub(crate) fn settle(nodes: &mut [Node], referred: bool) {
             }
             place += 1;
         }
+        if let Some(extra) = extra(nodes, at) {
+            let types = told(nodes, extra);
+            if let Some(Node::Rules(rules)) = nodes.get_mut(at)
+                && let Some(objects) = &mut rules.object
+            {
+                objects.extra_types = types;
+            }
+        }
+    }
+}
+
+/// The node every field node `at` does not name is held to.
+fn extra(nodes: &[Node], at: Id) -> Option<Id> {
+    match nodes.get(at)? {
+        Node::Rules(rules) => match rules.object.as_ref()?.extra {
+            Extra::Checked(id) => Some(id),
+            Extra::Absent | Extra::Allowed | Extra::Refused => None,
+        },
+        Node::Any | Node::Never | Node::Types(..) => None,
     }
 }
 

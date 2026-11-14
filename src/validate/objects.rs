@@ -113,32 +113,6 @@ impl Walk<'_> {
         }
         met & required == required
     }
-
-    /// Where only `additionalProperties` asks anything of a field: each held to it, nothing
-    /// looked up; `None` where other keywords name fields.
-    pub(super) fn only_extra<const F: bool>(
-        &self,
-        objects: &Objects,
-        object: &Value,
-        fields: &Map<String, Value>,
-        at: &At<'_>,
-        r: &mut Report<'_, F>,
-    ) -> Option<bool> {
-        let Extra::Checked(id) = objects.extra else {
-            return None;
-        };
-        if !objects.properties.is_empty() || !objects.patterns.is_empty() || objects.names.is_some()
-        {
-            return None;
-        }
-        for (name, value) in fields {
-            let ok = self.fits(id, value) || self.child(id, value, &At::Key(at, name), r.part());
-            if !r.took(ok) {
-                return Some(false);
-            }
-        }
-        Some(!objects.closing || self.closing(objects, object, fields, at, r))
-    }
 }
 
 #[cfg(test)]
