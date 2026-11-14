@@ -9,6 +9,7 @@ use crate::node::{
     ALL, ARRAY, BOOLEAN, HAS_KIND, HAS_STRING, Id, Items, NULL, NUMBER, Node, OBJECT, PlainArray,
     Rules, STRING, kind_of,
 };
+use crate::number::numbers_eq;
 use crate::report::{At, Report, said};
 use crate::text::same_text;
 
@@ -31,16 +32,14 @@ pub(super) fn strings(rules: &Rules, value: &Value) -> bool {
         })
 }
 
-/// Whether `value` is the `const` of a leaf (a string, a boolean or null).
+/// Whether `value` is the `const` of a leaf (a string, a number, a boolean or null).
 #[inline(always)]
 pub(super) fn constant(rules: &Rules, value: &Value) -> Option<bool> {
-    rules.constant.as_ref().map(|known| {
-        match (known.as_str(), value.as_str()) {
-            (Some(known), Some(text)) => same_text(known, text),
-            // A boolean or null: itself alone.
-            (None, None) => known == value,
-            (Some(_), None) | (None, Some(_)) => false,
-        }
+    rules.constant.as_ref().map(|known| match (known, value) {
+        (Value::String(known), Value::String(text)) => same_text(known, text),
+        (Value::Number(known), Value::Number(n)) => numbers_eq(known, n),
+        // A boolean or null is itself alone, and nothing is a value of another kind.
+        (known, value) => known == value,
     })
 }
 

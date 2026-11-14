@@ -39,7 +39,13 @@
   pass. A fraction beside whole bounds is compared as the
   float it is; a node no short way is kept for is told by its type first, then by what the
   value's kind asks alone, and an `allOf`, a `not` and an `if` go through the short ways too. An `enum`'s strings, a field's name and a
-  tag's value are compared inline, with no call to `memcmp`.
+  tag's value are compared inline, with no call to `memcmp`. A union's branch that cannot hold
+  a value of the value's kind is not walked, and a union of branches that each only require
+  names of the object's properties is told by the names the object has, with nothing looked
+  up. A fraction held to a `multipleOf` of few decimal places is told with no spelling of it.
+  An `enum` or a `const` of numbers is compared where the value stands, and an object held to
+  a count of its fields, beside the names it requires or one schema for every field, goes by
+  the short ways too.
 - Every verdict and message is unchanged: the official suite, MaskBench and the quick loop's
   fingerprint say so.
 - `bench/quick/`: the loop a change is measured in first, in instructions, cycles and

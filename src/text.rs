@@ -42,25 +42,50 @@ pub(crate) fn same_bytes(a: &[u8], b: &[u8]) -> bool {
     }
 }
 
-/// Two names in byte order, eight bytes at a time and inline: a field's name is short, and a
-/// call to the system's `memcmp` for each costs more than the comparison.
+/// Two names in byte order, inline: a field's name is short, and a call to the system's
+/// `memcmp` for each costs more than the comparison.
 #[inline]
-pub(crate) fn order(mut a: &[u8], mut b: &[u8]) -> Ordering {
-    while let (Some((x, rest_a)), Some((y, rest_b))) =
-        (a.split_first_chunk::<8>(), b.split_first_chunk::<8>())
-    {
-        let (x, y) = (u64::from_be_bytes(*x), u64::from_be_bytes(*y));
-        if x != y {
-            return x.cmp(&y);
+pub(crate) fn order(a: &[u8], b: &[u8]) -> Ordering {
+    let n = a.len().min(b.len());
+    let (Some(x), Some(y)) = (a.get(..n), b.get(..n)) else {
+        return Ordering::Equal;
+    };
+    // What both have, read as few numbers as hold it: the last one may lie over bytes already
+    // read, which are the same in both and so say nothing of their order.
+    let shared = match n {
+        0 => Ordering::Equal,
+        1..=3 => {
+            let at = |name: &[u8]| {
+                (
+                    name.first().copied(),
+                    name.get(n / 2).copied(),
+                    name.last().copied(),
+                )
+            };
+            at(x).cmp(&at(y))
         }
-        (a, b) = (rest_a, rest_b);
-    }
-    for (x, y) in a.iter().zip(b) {
-        if x != y {
-            return x.cmp(y);
+        4..=7 => {
+            let read = |four: Option<&[u8; 4]>| four.map(|four| u32::from_be_bytes(*four));
+            (read(x.first_chunk()), read(x.last_chunk()))
+                .cmp(&(read(y.first_chunk()), read(y.last_chunk())))
         }
-    }
-    a.len().cmp(&b.len())
+        _ => {
+            let read = |eight: Option<&[u8; 8]>| eight.map(|eight| u64::from_be_bytes(*eight));
+            let (mut p, mut q) = (x, y);
+            while let (Some((c, rest_p)), Some((d, rest_q)), true) = (
+                p.split_first_chunk::<8>(),
+                q.split_first_chunk::<8>(),
+                p.len() > 8,
+            ) {
+                if c != d {
+                    return read(Some(c)).cmp(&read(Some(d)));
+                }
+                (p, q) = (rest_p, rest_q);
+            }
+            read(x.last_chunk()).cmp(&read(y.last_chunk()))
+        }
+    };
+    shared.then(a.len().cmp(&b.len()))
 }
 
 /// Past this many fields, a field of a data object is looked up in its map rather than walked to.

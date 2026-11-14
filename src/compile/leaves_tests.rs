@@ -37,7 +37,10 @@ fn common_leaves_are_found_and_the_rest_are_walked() {
         (json!({"const": "read"}), Leaf::Const),
         (json!({"type": "string", "const": "read"}), Leaf::Const),
         (json!({"const": null}), Leaf::Const),
-        (json!({"const": 1}), Leaf::Walked),
+        (json!({"const": 1}), Leaf::Const),
+        (json!({"type": "number", "const": 1.5}), Leaf::Const),
+        // Whether `1.0` is the integer `1` is the draft's to say: left to the walk.
+        (json!({"type": "integer", "const": 1}), Leaf::Walked),
         (json!({"type": "integer", "const": "read"}), Leaf::Walked),
         (json!({"const": "read", "enum": ["read"]}), Leaf::Walked),
     ];

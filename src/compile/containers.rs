@@ -121,6 +121,7 @@ impl<'j> Compiler<'j> {
             patterns: patterns.into_boxed_slice(),
             extra,
             extra_types: 0,
+            branches: Box::default(),
             names,
             min_fields,
             max_fields,

@@ -141,7 +141,7 @@ impl Walk<'_> {
             // says so, and the walk fails there, not after every field.
             if let Some(bits) = bits
                 && cursor.passed & !met & bits != 0
-                && cursor.missing(fields, met)
+                && cursor.missing(fields, met, bits)
             {
                 return r.no(String::new);
             }

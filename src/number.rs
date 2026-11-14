@@ -41,7 +41,26 @@ pub(crate) fn json_eq(a: &Value, b: &Value) -> bool {
     }
 }
 
-fn numbers_eq(a: &Number, b: &Number) -> bool {
+/// Whether `value` is one of `options` by JSON's equality: a number, a boolean, a null or a
+/// string is compared where it stands, with no call for each option.
+#[inline]
+pub(crate) fn among(options: &[Value], value: &Value) -> bool {
+    match value {
+        Value::Number(n) => (options.iter())
+            .any(|option| matches!(option, Value::Number(known) if numbers_eq(known, n))),
+        Value::Bool(b) => {
+            (options.iter()).any(|option| matches!(option, Value::Bool(known) if known == b))
+        }
+        Value::Null => options.iter().any(Value::is_null),
+        Value::String(text) => (options.iter()).any(
+            |option| matches!(option, Value::String(known) if crate::text::same_text(known, text)),
+        ),
+        Value::Array(_) | Value::Object(_) => options.iter().any(|option| json_eq(option, value)),
+    }
+}
+
+#[inline]
+pub(crate) fn numbers_eq(a: &Number, b: &Number) -> bool {
     if let (Some(a), Some(b)) = (a.as_u64(), b.as_u64()) {
         return a == b;
     }
@@ -125,13 +144,40 @@ pub(crate) fn exact(f: f64) -> Option<i128> {
 pub(crate) struct Divisor {
     pub(crate) said: Number,
     parts: Option<(i128, u32)>,
+    /// The same parts where they are small, as a fraction is held to them with no spelling
+    /// of it (`Divisor::unspelled`): the mantissa, and ten to the places as a float.
+    small: Option<(i64, f64)>,
 }
+
+/// Below it a whole float is told from its neighbours by a quarter and more: 2^50.
+const NEAR: f64 = 1_125_899_906_842_624.0;
 
 impl Divisor {
     pub(crate) fn new(said: &Number) -> Self {
         let parts = said.as_f64().and_then(decimal);
+        let small = parts.and_then(|(mantissa, places)| {
+            let mantissa = i64::try_from(mantissa).ok().filter(|it| *it > 0)?;
+            // Up to 15 places ten's power is a whole float, exactly.
+            let power = 10_i64.checked_pow(places).filter(|_| places <= 15)?;
+            Some((mantissa, power as f64))
+        });
         let said = said.clone();
-        Self { said, parts }
+        Self { said, parts, small }
+    }
+
+    /// Whether the fraction `n` divides by a small divisor, told with no spelling of `n`;
+    /// `None` where it is not told so. `n` times ten to the divisor's places, rounded, is the
+    /// one whole number that many places could spell `n` with: where it spells `n` back, `n`
+    /// has no more places and is that mantissa; where it does not, `n` has more places than
+    /// the divisor, and nothing with more places is its multiple.
+    fn unspelled(&self, n: f64) -> Option<bool> {
+        let (mantissa, power) = self.small?;
+        let scaled = (n * power).round();
+        if scaled == 0.0 || scaled.abs() >= NEAR {
+            return None;
+        }
+        let whole = i64::try_from(exact(scaled)?).ok()?;
+        Some(scaled / power == n && whole % mantissa == 0)
     }
 
     /// Whether `n` divides by the divisor with no remainder: integers by their remainder,
@@ -153,6 +199,11 @@ impl Divisor {
         };
         if mf <= 0.0 {
             return true;
+        }
+        if whole_n.is_none()
+            && let Some(told) = self.unspelled(nf)
+        {
+            return told;
         }
         // A whole number is its own mantissa: only a fraction is spelled to be read.
         let spelled = || whole_n.map(|whole| (whole, 0)).or_else(|| decimal(nf));

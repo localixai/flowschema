@@ -44,8 +44,8 @@ fn a_required_field_gone_past_is_confirmed_missing_by_one_lookup() {
             .collect()
     };
     // "a" came out of order: it is there; "b" is not.
-    assert!(cursor.missing(&fields(&["c", "a"]), 0));
+    assert!(cursor.missing(&fields(&["c", "a"]), 0, u64::MAX));
     assert_eq!(cursor.passed, 0, "what was asked is not asked again");
     cursor.passed = 0b011;
-    assert!(!cursor.missing(&fields(&["a", "b", "c"]), 0));
+    assert!(!cursor.missing(&fields(&["a", "b", "c"]), 0, u64::MAX));
 }

@@ -73,6 +73,10 @@ pub(crate) struct Rules {
     pub(crate) lane: Lane,
     /// The strings a union of names holds, where the node is one (`compile/unions.rs`).
     pub(crate) listed: Option<Box<crate::hash::Listed>>,
+    /// For each branch of the node's one union, the kinds of value it can hold at all (its
+    /// types, its `enum`'s, its `const`'s): a branch that cannot hold the value's is not walked
+    /// (`compile/unions.rs`).
+    pub(crate) kinds: Box<[u8]>,
     /// The way a quick walk takes through the node (`validate/lanes.rs`), chosen last.
     pub(crate) way: Quick,
     /// The node this one only refers to, where a `$ref` is all it asks.
@@ -362,6 +366,10 @@ pub(crate) struct Objects {
     /// The types every other field is held to, where `extra` is a node of types alone (a map
     /// of strings, say): told here as a property is told its own (`compile/flatten.rs`).
     pub(crate) extra_types: u8,
+    /// Where the one union beside the object is of branches that each only require names
+    /// `properties` holds: each branch's names as its properties' bits, so the walk that met
+    /// the properties tells each branch with nothing looked up (`compile/unions.rs`).
+    pub(crate) branches: Box<[u64]>,
 }
 
 impl Objects {

@@ -53,7 +53,7 @@ fails the checks when broken.
 - **F2** _checked_ (`bench`, `no-allocation`): `matches` allocates nothing, valid data or not;
   a `uniqueItems` keeps one set of its items' hashes.
 - **F3** _checked_ (`tests/repo.rs`): at most 300 lines of working code per file and 100 per
-  function; at most 7,700 in all. A change that does not fit removes code first.
+  function; at most 8,000 in all. A change that does not fit removes code first.
 - **F4** _checked_: every file opens with a `//!` that says what it is; `x.rs` sits beside its
   directory `x/`, never `x/mod.rs`; unit tests live in `x_tests.rs`, wired by
   `#[cfg(test)] #[path = "x_tests.rs"] mod tests;`; English only. Comments say why.

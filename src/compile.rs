@@ -289,7 +289,7 @@ impl<'j> Compiler<'j> {
         // types first, so a leaf found here is never asked of it.
         built.leaf = leaves::leaf(&built);
         built.lane = leaves::lane(&built);
-        self.unions |= built.lane == Lane::Union;
+        self.unions |= matches!(built.lane, Lane::Union | Lane::Both);
         built
     }
 

@@ -7,7 +7,7 @@ use serde_json::Value;
 
 use crate::node::{
     BOOLEAN, Extra, HAS_ARRAY, HAS_COMBINED, HAS_KIND, HAS_NUMBER, HAS_OBJECT, HAS_STRING, INTEGER,
-    Lane, Leaf, NULL, Rules, STRING,
+    Lane, Leaf, NULL, NUMBER, Rules, STRING,
 };
 
 /// What `rules` ask, where they are a leaf.
@@ -22,12 +22,14 @@ pub(super) fn leaf(rules: &Rules) -> Leaf {
         return Leaf::Walked;
     }
     if let Some(known) = &rules.constant {
-        // A number is left to the walk: whether `1.0` is the integer `1` is the draft's to say.
+        // A number beside `integer` is left to the walk: whether `1.0` is the integer `1` is
+        // the draft's to say. Beside `number`, or no type, every number equal to it is held.
         let kind = match known {
             Value::String(_) => STRING,
             Value::Bool(_) => BOOLEAN,
             Value::Null => NULL,
-            Value::Number(_) | Value::Array(_) | Value::Object(_) => 0,
+            Value::Number(_) => NUMBER,
+            Value::Array(_) | Value::Object(_) => 0,
         };
         return match kind_alone && rules.options.is_none() && kind != 0 && allows(kind) {
             true => Leaf::Const,
@@ -70,6 +72,13 @@ pub(super) fn lane(rules: &Rules) -> Lane {
     let patterned = (rules.object.as_ref()).is_some_and(|objects| {
         !objects.patterns.is_empty() && objects.names.is_none() && !objects.closing
     });
+    // Held to nothing after its fields but how many they are: `simple`, or that beside.
+    let counted = (rules.object.as_ref()).is_some_and(|objects| {
+        objects.names.is_none()
+            && objects.patterns.is_empty()
+            && objects.dependent.is_empty()
+            && objects.dependent_schemas.is_empty()
+    });
     // Names no property, and holds every field to one schema.
     let map = (rules.object.as_ref()).is_some_and(|objects| {
         objects.properties.is_empty() && matches!(objects.extra, Extra::Checked(_))
@@ -92,8 +101,8 @@ pub(super) fn lane(rules: &Rules) -> Lane {
     let unions = rules.any_of.is_empty() && rules.one_of.is_empty();
     let (all, not) = (!rules.all_of.is_empty(), rules.not.is_some());
     match (bare, own) {
-        (true, HAS_OBJECT) if object && named => Lane::Required,
-        (true, HAS_OBJECT) if object && map => Lane::Map,
+        (true, HAS_OBJECT) if counted && named => Lane::Required,
+        (true, HAS_OBJECT) if counted && map => Lane::Map,
         (true, HAS_OBJECT) if object => Lane::Object,
         (true, HAS_OBJECT) if patterned => Lane::Patterned,
         (true, HAS_OBJECT) => Lane::Fields,

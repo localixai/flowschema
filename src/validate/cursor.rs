@@ -71,10 +71,10 @@ impl<'p, 'd> Cursor<'p, 'd> {
 }
 
 impl Cursor<'_, '_> {
-    /// Whether a required property gone past unmet is not in `fields` (it may have come out of
-    /// order); those found are not asked again.
-    pub(super) fn missing(&mut self, fields: &Map<String, Value>, met: u64) -> bool {
-        let lost = self.passed & !met;
+    /// Whether a property of the `required` bits gone past unmet is not in `fields` (it may
+    /// have come out of order); those found are not asked again.
+    pub(super) fn missing(&mut self, fields: &Map<String, Value>, met: u64, required: u64) -> bool {
+        let lost = self.passed & !met & required;
         self.passed &= met;
         (self.properties.iter())
             .filter(|known| lost & known.bit != 0)

@@ -5,13 +5,15 @@
 
 use serde_json::Value;
 
+use super::objects::seen;
 use super::scalars::bounds;
 use super::shortcut;
 use super::{DEPTH, Walk};
 use crate::node::{
-    ARRAY, Extra, HAS_ARRAY, HAS_COMBINED, HAS_NUMBER, HAS_OBJECT, HAS_STRING, Id, Lane, Leaf,
-    Node, OBJECT, Objects, Rules,
+    ARRAY, BOOLEAN, Extra, HAS_ARRAY, HAS_COMBINED, HAS_NUMBER, HAS_OBJECT, HAS_STRING, INTEGER,
+    Id, Lane, Leaf, NULL, NUMBER, Node, OBJECT, Objects, Rules, STRING,
 };
+use crate::number::{among, json_eq};
 use crate::report::{At, Report};
 
 impl Walk<'_> {
@@ -195,11 +197,22 @@ fn object(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, _: usize) -> boo
     }
 }
 
-/// An object held to the names it requires, each looked up; no field of it is read.
+/// Whether an object of `given` fields has as many as `objects` allows.
+#[inline(always)]
+fn counted(objects: &Objects, given: usize) -> bool {
+    let given = given as u64;
+    !objects.closing
+        || (objects.min_fields.is_none_or(|least| given >= least)
+            && objects.max_fields.is_none_or(|most| given <= most))
+}
+
+/// An object held to the names it requires, each looked up, and to how many fields it has; no
+/// field of it is read.
 fn required(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, _: usize) -> bool {
     match (value, &rules.object) {
         (Value::Object(fields), Some(objects)) => {
             rules.types.is_none_or(|types| types & OBJECT != 0)
+                && counted(objects, fields.len())
                 && (objects.required.iter())
                     .all(|it| fields.contains_key(objects.required_name(it)))
         }
@@ -217,6 +230,7 @@ fn map(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, _: usize) -> bool {
                 (types, _) => walk.has_type(types, value),
             };
             rules.types.is_none_or(|types| types & OBJECT != 0)
+                && counted(objects, fields.len())
                 && (objects.required.iter())
                     .all(|it| fields.contains_key(objects.required_name(it)))
                 && fields.values().all(held)
@@ -225,8 +239,26 @@ fn map(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, _: usize) -> bool {
     }
 }
 
-/// An object as `object` reads it (or a type alone), and the one union beside it.
+/// An object as `object` reads it (or a type alone), and the one union beside it: where its
+/// branches only require names of the object's properties (`Objects::branches`), each is told
+/// by the properties the walk met, with nothing looked up.
 fn both(walk: &Walk<'_>, id: Id, rules: &Rules, value: &Value, refs: usize) -> bool {
+    if let (Value::Object(fields), Some(objects)) = (value, &rules.object)
+        && !objects.branches.is_empty()
+        && walk.sorted
+    {
+        // The object first, as a union is tried after it: one that does not hold is not read
+        // twice.
+        if !object(walk, id, rules, value, refs) {
+            return false;
+        }
+        let met = seen(objects, fields);
+        let held = (objects.branches.iter()).filter(|mask| met & **mask == **mask);
+        return match rules.any_of.is_empty() {
+            true => held.count() == 1,
+            false => held.count() > 0,
+        };
+    }
     object(walk, id, rules, value, refs) && union(walk, id, rules, value, refs)
 }
 
@@ -267,21 +299,40 @@ fn items(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, _: usize) -> bool
     }
 }
 
-/// `type`, `enum` and `const` (`Walk::kind`).
+/// `type`, `enum` and `const`, each asked only where the node has it.
 fn kind(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, _: usize) -> bool {
-    walk.kind(rules, value, &At::Root, &mut Report::quiet())
+    rules.types.is_none_or(|types| walk.has_type(types, value))
+        && match (&rules.options, &rules.table) {
+            (Some(Value::Array(options)), Some(table)) => table.holds(options, value),
+            (Some(Value::Array(options)), None) => among(options, value),
+            (Some(_) | None, _) => true,
+        }
+        && (rules.constant.as_ref()).is_none_or(|one| json_eq(one, value))
 }
 
 fn union(walk: &Walk<'_>, _: Id, rules: &Rules, value: &Value, refs: usize) -> bool {
     let tagged = rules.any_tag.is_some() || rules.one_tag.is_some();
+    // A branch that cannot hold a value of this kind (`Rules::kinds`) is not walked.
+    let kind = match value {
+        Value::Null => NULL,
+        Value::Bool(_) => BOOLEAN,
+        Value::Number(_) => NUMBER | INTEGER,
+        Value::String(_) => STRING,
+        Value::Array(_) => ARRAY,
+        Value::Object(_) => OBJECT,
+    };
+    let held = |(place, id): (usize, &Id)| {
+        (rules.kinds.get(place)).is_none_or(|kinds| kinds & kind != 0)
+            && walk.holds(*id, value, refs)
+    };
     match (&rules.listed, rules.any_of.is_empty(), tagged) {
         // A union of names holds the strings of its list and nothing else.
         (Some(listed), _, _) => value.as_str().is_some_and(|text| listed.holds(text)),
         // With no tag to pick a branch by, each is tried in turn: the first that holds
         // settles an `anyOf`, a second one a `oneOf`.
-        (None, false, false) => (rules.any_of.iter()).any(|id| walk.holds(*id, value, refs)),
+        (None, false, false) => rules.any_of.iter().enumerate().any(held),
         (None, true, false) => {
-            let mut held = (rules.one_of.iter()).filter(|id| walk.holds(**id, value, refs));
+            let mut held = rules.one_of.iter().enumerate().filter(|it| held(*it));
             held.next().is_some() && held.next().is_none()
         }
         (None, false, true) => {

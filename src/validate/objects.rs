@@ -28,7 +28,7 @@ impl Walk<'_> {
             let (name, id) = (&*property.name, property.id);
             let Some(value) = field(fields, name) else {
                 // A required field looked up and not there: no need to read on.
-                if bits.is_some() && property.bit != 0 {
+                if bits.is_some_and(|required| property.bit & required != 0) {
                     return r.no(String::new);
                 }
                 continue;
@@ -80,7 +80,13 @@ impl Walk<'_> {
                     (found, next) = (Some(property), next + 1);
                     break;
                 }
-                match order(known, wanted) {
+                // Two names that are not the same mostly differ at their first byte: told
+                // there, with the rest unread.
+                let stands = match known.first().cmp(&wanted.first()) {
+                    Ordering::Equal => order(known, wanted),
+                    apart @ (Ordering::Less | Ordering::Greater) => apart,
+                };
+                match stands {
                     Ordering::Less if property.bit & required != 0 => return false,
                     Ordering::Less => next += 1,
                     Ordering::Equal => {
@@ -113,6 +119,25 @@ impl Walk<'_> {
         }
         met & required == required
     }
+}
+
+/// The bits of the properties among `fields`, both in the order of their names: what a union
+/// of required names beside an object is told by (`Objects::branches`), with nothing looked up.
+pub(super) fn seen(objects: &Objects, fields: &Map<String, Value>) -> u64 {
+    let (mut next, mut bits) = (0, 0);
+    for name in fields.keys() {
+        while let Some(property) = objects.properties.get(next) {
+            match order(property.name.as_bytes(), name.as_bytes()) {
+                Ordering::Less => next += 1,
+                Ordering::Equal => {
+                    (bits, next) = (bits | property.bit, next + 1);
+                    break;
+                }
+                Ordering::Greater => break,
+            }
+        }
+    }
+    bits
 }
 
 #[cfg(test)]

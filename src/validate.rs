@@ -18,10 +18,9 @@ use serde_json::Value;
 use crate::node::{
     HAS_ARRAY, HAS_COMBINED, HAS_KIND, HAS_NUMBER, HAS_OBJECT, HAS_STRING, Id, Node, Rules,
 };
-use crate::number::json_eq;
+use crate::number::{among, json_eq};
 use crate::pattern::Pattern;
 use crate::report::{At, Report, said, short, type_of};
-use crate::text::same_text;
 use scalars::bounds;
 
 /// The most `$ref`s followed in a row with no step into the data: a schema that refers to
@@ -256,11 +255,7 @@ impl Walk<'_> {
             && !(rules.option_kinds & kind != 0
                 && match (&rules.table, value) {
                     (Some(table), _) => table.holds(options, value),
-                    // A string is only another string (`json_eq`), compared where it stands.
-                    (None, Value::String(text)) => options.iter().any(
-                        |option| matches!(option, Value::String(known) if same_text(known, text)),
-                    ),
-                    (None, _) => options.iter().any(|option| json_eq(option, value)),
+                    (None, _) => among(options, value),
                 })
             && !r.no(|| said!("{at} must be one of {} (is {})", short(whole), short(value)))
         {

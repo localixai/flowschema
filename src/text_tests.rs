@@ -49,3 +49,27 @@ fn a_field_is_found_walked_to_or_looked_up() {
     assert_eq!(field(&large, "f39"), Some(&json!(39)));
     assert_eq!(field(&large, "f40"), None);
 }
+
+#[test]
+fn names_of_every_length_are_ordered_as_their_bytes_are() {
+    let seed = "abcdefghijklmnopqrstuvwxyzabcdefgh";
+    let mut names = vec![seed.to_string()];
+    // Every beginning, and the same beginnings ending otherwise, a byte above and one below.
+    for n in 0..seed.len() {
+        let (head, tail) = seed.split_at(n);
+        names.push(head.to_string());
+        names.push(format!("{head}~"));
+        names.push(format!("{head}!{tail}"));
+        names.push(format!("{head}é"));
+        names.push(format!("{head}\0"));
+    }
+    for a in &names {
+        for b in &names {
+            assert_eq!(
+                order(a.as_bytes(), b.as_bytes()),
+                a.as_bytes().cmp(b.as_bytes()),
+                "{a:?} {b:?}"
+            );
+        }
+    }
+}
