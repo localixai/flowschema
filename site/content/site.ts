@@ -58,6 +58,12 @@ const site: SiteConfig = {
     },
     inLanguage: 'en',
   },
+  // Usage statistics: Google Analytics 4, only after a visitor's yes (the lab's one property).
+  analytics: {
+    ga4: 'G-Q8WCW7ZLDD',
+    notice: 'We count visits with Google Analytics, only with your yes, to see which pages help.',
+    privacy: 'https://localix.ai/privacy',
+  },
   llms: `> ${DESCRIPTION}`,
 };
 
