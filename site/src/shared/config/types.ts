@@ -40,6 +40,10 @@ export type SiteConfig = {
    *  domains whose sites share the measurement id, so a visitor going between them stays one
    *  visitor. Without it the site has no card, no footer link and no tag. */
   analytics?: { ga4: string; notice: string; privacy?: string; linker?: string[] };
+  /** An IndexNow key (8 to 128 letters, digits and dashes): the build serves it at /<key>.txt, so
+   *  the site's pages can be announced to Bing, Yandex and the other IndexNow engines the moment
+   *  they change (content/docs/site-config.md). */
+  indexnow?: string;
   /** schema.org data for the landing. */
   jsonLd?: Record<string, unknown>;
   /** The opening of llms.txt, as markdown; the docs' list follows it. */
