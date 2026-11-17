@@ -16,7 +16,8 @@ export type AnalyticsEvent = keyof AnalyticsEvents;
 
 /** Each string parameter's closed set; a value outside it drops the event. */
 const SETS: { readonly [P in string]?: () => readonly string[] } = {
-  method: () => SITE.install.map(([label]) => label),
+  // A site may have no install command: its config can leave it out.
+  method: () => (SITE.install ?? []).map(([label]) => label),
 };
 
 /** The event's parameters as GA4 takes them, or undefined when one is outside its set. */
