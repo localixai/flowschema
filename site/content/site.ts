@@ -6,7 +6,7 @@ import type { SiteConfig } from '@/shared/config';
 const GITHUB = 'https://github.com/localixai/flowschema';
 const URL = 'https://flowschema.localix.ai';
 const DESCRIPTION =
-  'JSON Schema for agents: tool calls and structured output, checked as models write them. A Rust crate: drafts 4 to 2020-12, two dependencies, no allocation on a check.';
+  'Tool calls and structured output checked against JSON Schema as models write them. A Rust crate: drafts 4 to 2020-12, two dependencies, no allocation.';
 
 const site: SiteConfig = {
   name: 'flowschema',

@@ -5,7 +5,7 @@ import type { DocsConfig } from '@/shared/config';
 const docs: DocsConfig = {
   index: {
     title: 'flowschema docs',
-    description: 'How to check tool calls and structured answers against a JSON Schema with flowschema: the install, the two loops of an agent, provider strict modes, cut-off and streaming calls, and what is checked.',
+    description: 'How to check tool calls and structured answers against JSON Schema with flowschema: the install, an agent\'s two loops, strict modes and streaming calls.',
   },
   groups: [
     {
